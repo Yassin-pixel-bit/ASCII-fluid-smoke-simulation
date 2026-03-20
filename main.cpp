@@ -12,20 +12,42 @@ using namespace std;
 void setup();
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH);
 
+string get_fps_overlay(float dt)
+{
+    static float fps_timer = 0.0f;
+    static int frame_count = 0;
+    static std::string fps_display = "FPS: --";
+
+    fps_timer += dt;
+    frame_count++;
+
+    // Update the string only once per second so it is readable
+    if (fps_timer >= 1.0f)
+    {
+        fps_display = "FPS: " + std::to_string(frame_count);
+        
+        // Reset counters (subtracting 1.0f instead of setting to 0 keeps the remainder for precise timing)
+        fps_timer -= 1.0f;
+        frame_count = 0;
+    }
+
+    return fps_display;
+}
+
 int main()
 {
     ios_base::sync_with_stdio(false);
 
     setup();
 
-    const float TARGET_FPS = 60.0f;
+    const float TARGET_FPS = 165.0f;
     const chrono::milliseconds FRAME_DURATION(1000 / (int)TARGET_FPS);
 
     fluid_container container(getTerminalHeight(), getTerminalWidth(), 1.0f / TARGET_FPS);
 
     vector<char> grid(container.height * container.width, '@');
     string print_string;
-    print_string.reserve(container.height * (container.width + 1));
+    print_string.resize(container.height * (container.width + 1) - 1, ' ');
 
     // temp emision array
     vector<float> emission_arr;
@@ -48,25 +70,17 @@ int main()
         set_print_string(print_string, container.dens, container.height, container.width);
 
         // using flush to ensure that everything is rendered immediatly.
-        cout << "\033[H" << print_string << flush;
+        // 1. Move to top-left and draw the fluid grid
+        cout << "\033[H" << print_string;
+        
+        // 2. Move to top-left AGAIN, set text to Bright Green (\033[92m), print FPS, reset color (\033[0m), and flush
+        cout << "\033[H\033[92m" << get_fps_overlay(container.dt) << "\033[0m" << flush;
 
-        auto frame_end = chrono::high_resolution_clock::now();
-        auto elapsed = chrono::duration_cast<chrono::milliseconds>(frame_end - frame_start);
+        auto target_time = frame_start + FRAME_DURATION;
+        auto now = chrono::high_resolution_clock::now();
 
-        if (elapsed < FRAME_DURATION)
-        {
-            this_thread::sleep_for(FRAME_DURATION - elapsed);
-        }
+        while (chrono::high_resolution_clock::now() < target_time);
     }
-
-    // for (int i = 0; i < 1; i++)
-    // {
-    //     cout << print_string;
-    // }
-
-    // cout << "\033[" << 31 << "m" << "test to see if ANSI works" << "\033[" << 0 << "m";
-
-    // cin.get();
 
     return 0;
 }
@@ -84,19 +98,23 @@ void setup()
 
 inline char map_to_char(float density, const string& str)
 {
-    int index = (int)(density * 9.0f);
+    int max_index = str.length() - 1;
+
+    int index = (int)(density * max_index);
     
-    index = clamp(index, 0, 9);
+    // Clamp using the dynamic max_index
+    index = std::clamp(index, 0, max_index);
     
     return str[index];
 }
 
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
 {
-    print_string.clear();
-    string str = " ,~>coCO8@";
+    static string str = R"( .`'-_,:~=;!*+<>\/|?#@)";
+    // static string str2 = R"( .~=co)x(O0Q&#%B@)";
 
     int grid_stride = TERMINAL_WIDTH + 2;
+    int string_index = 0;
 
     for (int i = 0; i < TERMINAL_LEN; i++)
     {
@@ -106,11 +124,11 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
             int grid_y = i + 1;
 
             int fluid_index = (grid_y * grid_stride) + grid_x;
-            print_string += map_to_char(grid[fluid_index], str);
+            print_string[string_index++] = map_to_char(grid[fluid_index], str);
         }
 
-        // as long as we are not at the kast row add a newline char
+        // as long as we are not at the last row add a newline char
         if ((i + 1) != TERMINAL_LEN)
-            print_string += "\n";
+            print_string[string_index++] = '\n';
     }
 }
