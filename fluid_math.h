@@ -10,17 +10,17 @@ struct fluid_container
     float dt;
 
     // Grids
-    vector<float> dens;
-    vector<float> dens_prev;
-    vector<float> vel_x;
-    vector<float> vel_y;
-    vector<float> vel_x_prev;
-    vector<float> vel_y_prev;
+    std::vector<float> dens;
+    std::vector<float> dens_prev;
+    std::vector<float> vel_x;
+    std::vector<float> vel_y;
+    std::vector<float> vel_x_prev;
+    std::vector<float> vel_y_prev;
 
     // Convert 2D coordinates (x, y) to 1D array index for a grid of size (n+2) x (n+2)
     inline int IDX(int i, int j) { return j * (width + 2) + i; }
 
-    fluid_container(int Height, int Width) : height(Height), width(Width)
+    fluid_container(int Height, int Width, float DT) : height(Height), width(Width), dt(DT)
     {
         int size = (height + 2) * (width + 2);
 
@@ -33,4 +33,4 @@ struct fluid_container
     }
 };
 
-void dens_step(int boundary_t, float diff, vector<float>& emission_arr, fluid_container& container);
+void dens_step(int boundary_t, float diff, std::vector<float>& emission_arr, fluid_container& container);

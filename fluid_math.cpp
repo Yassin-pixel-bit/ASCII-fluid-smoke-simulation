@@ -20,15 +20,15 @@ void lin_solve(int boundary_t, std::vector<float>& x, const std::vector<float>& 
         {
             for (int j = 1; j <= container.width; j++)
             {
-                x[container.IDX(i, j)] = 
-                    (x0[container.IDX(i,j)] + 
-                        a * (
-                            x[container.IDX(i - 1, j)] + 
-                            x[container.IDX(i + 1, j)] + 
-                            x[container.IDX(i, j - 1)] + 
-                            x[container.IDX(i, j + 1)]
-                        )
-                    ) / c;
+                x[container.IDX(j, i)] = 
+                (x0[container.IDX(j, i)] + 
+                    a * (
+                        x[container.IDX(j - 1, i)] + 
+                        x[container.IDX(j + 1, i)] + 
+                        x[container.IDX(j, i - 1)] + 
+                        x[container.IDX(j, i + 1)]
+                    )
+                ) / c;
             }
         }
         // set_bnd(boundary_t, x, container);
