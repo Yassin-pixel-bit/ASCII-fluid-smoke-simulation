@@ -43,11 +43,11 @@ int main()
     const float TARGET_FPS = 165.0f;
     const chrono::milliseconds FRAME_DURATION(1000 / (int)TARGET_FPS);
 
-    fluid_container container(getTerminalHeight(), getTerminalWidth(), 1.0f / TARGET_FPS);
+    fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
     vector<char> grid(container.height * container.width, '@');
     string print_string;
-    print_string.resize(container.height * (container.width + 1) - 1, ' ');
+    print_string.resize(container.height * ((container.width * 2)+ 1) - 1, ' ');
 
     // temp emision array
     vector<float> emission_arr;
@@ -65,7 +65,7 @@ int main()
         prev_frame_time = frame_start;
 
         emission_arr[container.IDX(container.width/2, container.height/2)] = 10000.0f;
-        dens_step(0, 0.0001f, emission_arr, container);
+        dens_step(0, 0.001f, emission_arr, container);
 
         set_print_string(print_string, container.dens, container.height, container.width);
 
@@ -124,7 +124,10 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
             int grid_y = i + 1;
 
             int fluid_index = (grid_y * grid_stride) + grid_x;
-            print_string[string_index++] = map_to_char(grid[fluid_index], str);
+            char c = map_to_char(grid[fluid_index], str);
+
+            print_string[string_index++] = c;
+            print_string[string_index++] = c;
         }
 
         // as long as we are not at the last row add a newline char
