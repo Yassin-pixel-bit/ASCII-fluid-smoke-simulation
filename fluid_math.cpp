@@ -77,3 +77,16 @@ void advect(vector<float>& curr_state, const vector<float>& prev_state, const ve
     }
     // set_bnd();
 }
+
+void dens_step(int boundary_t, float diff, vector<float>& emission_arr, fluid_container& container)
+{
+    add_source(container.dens, emission_arr, container);
+
+    swap(container.dens_prev, container.dens);
+    diffuse(boundary_t, container.dens, container.dens_prev, diff, container);
+
+    swap(container.dens_prev, container.dens);
+    advect(container.dens, container.dens_prev, container.vel_x, container.vel_y, container);
+
+    fill(emission_arr.begin(), emission_arr.end(), 0.0f);
+}
