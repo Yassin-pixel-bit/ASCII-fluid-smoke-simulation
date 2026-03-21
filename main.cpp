@@ -64,8 +64,38 @@ int main()
         container.dt = elapsed_seconds.count();
         prev_frame_time = frame_start;
 
-        emission_arr[container.IDX(container.width/2, container.height/2)] = 10000.0f;
-        dens_step(0, 0.001f, emission_arr, container);
+        static float total_sim_time = 0.0f;
+        total_sim_time += container.dt;
+
+        // 1. Set the source location to the top center
+        int center_x = container.width / 2;
+        int top_y = 2; // Start 2 cells below the ceiling so it doesn't clip the wall
+
+        // 2. Inject Density (The heavy liquid/gas)
+        // We inject it across a 3-cell wide block for a thick stream
+        if (total_sim_time < 1.0f)
+        {
+            // 2. Inject Density
+            emission_arr[container.IDX(center_x, top_y)] = 900.0f;
+            emission_arr[container.IDX(center_x - 1, top_y)] = 900.0f;
+            emission_arr[container.IDX(center_x + 1, top_y)] = 900.0f;
+
+            container.vel_y_prev[container.IDX(center_x, top_y)] = 500.0f;
+            container.vel_y_prev[container.IDX(center_x - 1, top_y)] = 500.0f;
+            container.vel_y_prev[container.IDX(center_x + 1, top_y)] = 500.0f;
+        }
+        else
+        {
+            container.vel_y_prev[container.IDX(center_x, top_y)] = 100.0f;
+            container.vel_y_prev[container.IDX(center_x - 1, top_y)] = 100.0f;
+            container.vel_y_prev[container.IDX(center_x + 1, top_y)] = 100.0f;
+        }
+
+        
+
+        // 4. Run the Physics Engine!
+        vel_step(0.001f, container);
+        dens_step(0, 0.00001f, emission_arr, container);
 
         set_print_string(print_string, container.dens, container.height, container.width);
 
@@ -79,7 +109,7 @@ int main()
         auto target_time = frame_start + FRAME_DURATION;
         auto now = chrono::high_resolution_clock::now();
 
-        while (chrono::high_resolution_clock::now() < target_time);
+        // while (chrono::high_resolution_clock::now() < target_time);
     }
 
     return 0;
