@@ -67,15 +67,12 @@ int main()
         static float total_sim_time = 0.0f;
         total_sim_time += container.dt;
 
-        // 1. Set the source location to the top center
         int center_x = container.width / 2;
-        int top_y = 2; // Start 2 cells below the ceiling so it doesn't clip the wall
+        int top_y = 2;
 
-        // 2. Inject Density (The heavy liquid/gas)
-        // We inject it across a 3-cell wide block for a thick stream
         if (total_sim_time < 1.0f)
         {
-            // 2. Inject Density
+            // Inject Density
             emission_arr[container.IDX(center_x, top_y)] = 900.0f;
             emission_arr[container.IDX(center_x - 1, top_y)] = 900.0f;
             emission_arr[container.IDX(center_x + 1, top_y)] = 900.0f;
@@ -91,25 +88,19 @@ int main()
             container.vel_y_prev[container.IDX(center_x + 1, top_y)] = 100.0f;
         }
 
-        
-
-        // 4. Run the Physics Engine!
         vel_step(0.001f, container);
         dens_step(0, 0.00001f, emission_arr, container);
 
         set_print_string(print_string, container.dens, container.height, container.width);
 
         // using flush to ensure that everything is rendered immediatly.
-        // 1. Move to top-left and draw the fluid grid
         cout << "\033[H" << print_string;
-        
-        // 2. Move to top-left AGAIN, set text to Bright Green (\033[92m), print FPS, reset color (\033[0m), and flush
         cout << "\033[H\033[92m" << get_fps_overlay(container.dt) << "\033[0m" << flush;
 
         auto target_time = frame_start + FRAME_DURATION;
         auto now = chrono::high_resolution_clock::now();
 
-        // while (chrono::high_resolution_clock::now() < target_time);
+        while (chrono::high_resolution_clock::now() < target_time);
     }
 
     return 0;
