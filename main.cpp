@@ -3,6 +3,7 @@
 #include <chrono>
 #include <thread>
 #include <algorithm>
+#include <csignal>
 #include "terminal.h"
 #include "test_functions.h"
 #include "fluid_math.h"
@@ -11,31 +12,14 @@ using namespace std;
 
 void setup();
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH);
-
-string get_fps_overlay(float dt)
-{
-    static float fps_timer = 0.0f;
-    static int frame_count = 0;
-    static std::string fps_display = "FPS: --";
-
-    fps_timer += dt;
-    frame_count++;
-
-    // Update the string only once per second so it is readable
-    if (fps_timer >= 1.0f)
-    {
-        fps_display = "FPS: " + std::to_string(frame_count);
-        
-        // Reset counters (subtracting 1.0f instead of setting to 0 keeps the remainder for precise timing)
-        fps_timer -= 1.0f;
-        frame_count = 0;
-    }
-
-    return fps_display;
-}
+string get_fps_overlay(float dt);
+void handleInterrupt(int signum);
+void shutdown(int signum);
 
 int main()
 {
+    signal(SIGINT, handleInterrupt);
+
     ios_base::sync_with_stdio(false);
 
     setup();
@@ -55,6 +39,9 @@ int main()
 
     auto prev_frame_time = chrono::high_resolution_clock::now();
 
+    bool pouring_smoke = false;
+    bool wind_w = false, wind_s = false, wind_a = false, wind_d = false;
+
     bool running = true;
     while (running)
     {
@@ -64,28 +51,48 @@ int main()
         container.dt = elapsed_seconds.count();
         prev_frame_time = frame_start;
 
-        static float total_sim_time = 0.0f;
-        total_sim_time += container.dt;
+        // Read all input (keys pressed) for this frame
+        updateInput();
+
+        if (isKeyPressed('q') || isKeyPressed('\x03')) 
+        {
+            running = false;
+        }
+
+        updateActionState(pouring_smoke, ' ');
+        updateActionState(wind_w, 'w');
+        updateActionState(wind_s, 's');
+        updateActionState(wind_a, 'a');
+        updateActionState(wind_d, 'd');
 
         int center_x = container.width / 2;
+        int center_y = container.height / 2;
         int top_y = 2;
 
-        if (total_sim_time < 1.0f)
+        if (pouring_smoke) 
         {
-            // Inject Density
-            emission_arr[container.IDX(center_x, top_y)] = 900.0f;
-            emission_arr[container.IDX(center_x - 1, top_y)] = 900.0f;
-            emission_arr[container.IDX(center_x + 1, top_y)] = 900.0f;
+            // Add density
+            emission_arr[container.IDX(center_x, top_y)] = 1000.0f;
+            emission_arr[container.IDX(center_x + 1, top_y)] = 1000.0f;
+            emission_arr[container.IDX(center_x, top_y)] = 1000.0f;
 
             container.vel_y_prev[container.IDX(center_x, top_y)] = 500.0f;
             container.vel_y_prev[container.IDX(center_x - 1, top_y)] = 500.0f;
             container.vel_y_prev[container.IDX(center_x + 1, top_y)] = 500.0f;
         }
-        else
-        {
-            container.vel_y_prev[container.IDX(center_x, top_y)] = 100.0f;
-            container.vel_y_prev[container.IDX(center_x - 1, top_y)] = 100.0f;
-            container.vel_y_prev[container.IDX(center_x + 1, top_y)] = 100.0f;
+
+        float wind_force = 500.0f;
+        if (wind_w) {
+            container.vel_y_prev[container.IDX(center_x, container.height - 2)] = -wind_force;
+        }
+        if (wind_s) {
+            container.vel_y_prev[container.IDX(center_x, 2)] = wind_force;
+        }
+        if (wind_a) {
+            container.vel_x_prev[container.IDX(container.width - 2, center_y)] = -wind_force;
+        }
+        if (wind_d) {
+            container.vel_x_prev[container.IDX(2, center_y)] = wind_force;
         }
 
         vel_step(0.001f, container);
@@ -103,6 +110,8 @@ int main()
         while (chrono::high_resolution_clock::now() < target_time);
     }
 
+    shutdown(0);
+
     return 0;
 }
 
@@ -110,9 +119,25 @@ void setup()
 {
     enableANSI();
 
-    cout << "For the best experience, please maximize your terminal or press F11 now.\n";
-    cout << "Press ENTER to start the simulation...";
-    cin.get();
+    cout << "=== ASCII Smoke Simulation ===\n\n";
+    cout << "Controls:\n";
+
+    #ifdef _WIN32
+        cout << " - Hold [SPACE] to pour smoke.\n";
+        cout << " - Hold [W,A,S,D] to apply wind.\n";
+    #else
+        cout << " - Press [SPACE] to toggle pouring smoke on/off.\n";
+        cout << " - Press [W,A,S,D] to toggle wind direction on/off.\n";
+    #endif
+
+        cout << " - Press [Q] to quit the simulation.\n\n";
+
+        cout << "For the best experience, please maximize your terminal or press F11 now.\n";
+        cout << "Press ENTER to start the simulation...";
+        cin.get();
+
+    // enters the alternate screen buffer
+    cout << "\033[?1049h" << flush;
 
     initTerminalSize();
 }
@@ -155,4 +180,47 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
         if ((i + 1) != TERMINAL_LEN)
             print_string[string_index++] = '\n';
     }
+}
+
+string get_fps_overlay(float dt)
+{
+    static float fps_timer = 0.0f;
+    static int frame_count = 0;
+    static std::string fps_display = "FPS: --";
+
+    fps_timer += dt;
+    frame_count++;
+
+    // Update the string only once per second so it is readable
+    if (fps_timer >= 1.0f)
+    {
+        fps_display = "FPS: " + std::to_string(frame_count);
+        
+        // Reset counters (subtracting 1.0f instead of setting to 0 keeps the remainder for precise timing)
+        fps_timer -= 1.0f;
+        frame_count = 0;
+    }
+
+    return fps_display;
+}
+
+void shutdown(int signum = 0)
+{
+    restoreTerminal();
+    // \033[?1049l exits the alternate screen buffer
+    // \033[?25h  restores the cursor (if you ever decide to hide it)
+    // \033[0m    resets all colors
+    cout << "\033[?1049l\033[?25h\033[0m" << flush;
+    
+    if (signum != 0) {
+        cout << "\nSimulation terminated cleanly by interrupt (Signal " << signum << ").\n";
+        exit(signum);
+    } else {
+        cout << "\nSimulation finished.\n";
+    }
+}
+
+// Update your signal handler to just call the new shutdown function
+void handleInterrupt(int signum) {
+    shutdown(signum);
 }
