@@ -7,6 +7,8 @@
 #include "terminal.h"
 #include "test_functions.h"
 #include "fluid_math.h"
+#include "input_state.h"
+#include "interactive.h"
 
 using namespace std;
 
@@ -23,24 +25,20 @@ int main()
     ios_base::sync_with_stdio(false);
 
     setup();
+    InputState input_state;
 
     const float TARGET_FPS = 165.0f;
     const chrono::milliseconds FRAME_DURATION(1000 / (int)TARGET_FPS);
 
     fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
-    vector<char> grid(container.height * container.width, '@');
     string print_string;
     print_string.resize(container.height * ((container.width * 2)+ 1) - 1, ' ');
 
-    // temp emision array
     vector<float> emission_arr;
     emission_arr.resize((container.height + 2) * (container.width + 2));
 
     auto prev_frame_time = chrono::high_resolution_clock::now();
-
-    bool pouring_smoke = false;
-    bool wind_w = false, wind_s = false, wind_a = false, wind_d = false;
 
     bool running = true;
     while (running)
@@ -51,49 +49,8 @@ int main()
         container.dt = elapsed_seconds.count();
         prev_frame_time = frame_start;
 
-        // Read all input (keys pressed) for this frame
-        updateInput();
-
-        if (isKeyPressed('q') || isKeyPressed('\x03')) 
-        {
-            running = false;
-        }
-
-        updateActionState(pouring_smoke, ' ');
-        updateActionState(wind_w, 'w');
-        updateActionState(wind_s, 's');
-        updateActionState(wind_a, 'a');
-        updateActionState(wind_d, 'd');
-
-        int center_x = container.width / 2;
-        int center_y = container.height / 2;
-        int top_y = 2;
-
-        if (pouring_smoke) 
-        {
-            // Add density
-            emission_arr[container.IDX(center_x, top_y)] = 1000.0f;
-            emission_arr[container.IDX(center_x + 1, top_y)] = 1000.0f;
-            emission_arr[container.IDX(center_x, top_y)] = 1000.0f;
-
-            container.vel_y_prev[container.IDX(center_x, top_y)] = 500.0f;
-            container.vel_y_prev[container.IDX(center_x - 1, top_y)] = 500.0f;
-            container.vel_y_prev[container.IDX(center_x + 1, top_y)] = 500.0f;
-        }
-
-        float wind_force = 500.0f;
-        if (wind_w) {
-            container.vel_y_prev[container.IDX(center_x, container.height - 2)] = -wind_force;
-        }
-        if (wind_s) {
-            container.vel_y_prev[container.IDX(center_x, 2)] = wind_force;
-        }
-        if (wind_a) {
-            container.vel_x_prev[container.IDX(container.width - 2, center_y)] = -wind_force;
-        }
-        if (wind_d) {
-            container.vel_x_prev[container.IDX(2, center_y)] = wind_force;
-        }
+        update_input(input_state);
+        apply_user_input(container, input_state, emission_arr);
 
         vel_step(0.001f, container);
         dens_step(0, 0.00001f, emission_arr, container);
