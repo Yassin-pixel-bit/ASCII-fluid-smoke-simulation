@@ -2,7 +2,7 @@
 A real-time, interactive fluid simulation rendered entirely in the terminal using ASCII characters. Written from scratch in C++, this engine is a direct implementation of Jos Stam's highly influential "Real-Time Fluid Dynamics for Games" stable solver, featuring cross-platform asynchronous input and custom configuration parsing.
 
 
-![ASCII Fluid Simulation Demo](https://raw.githubusercontent.com/Yassin-pixel-bit/ASCII-fluid/assets/Fluid_sim_example.gif)
+![ASCII Fluid Simulation Demo](https://raw.githubusercontent.com/Yassin-pixel-bit/ascii-fluid-smoke-simulation/assets/Fluid_sim_example.gif)
 
 
 ## Features
