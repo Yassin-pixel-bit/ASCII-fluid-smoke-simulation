@@ -81,7 +81,7 @@ int main()
         auto target_time = frame_start + FRAME_DURATION;
         auto now = chrono::high_resolution_clock::now();
 
-        while (chrono::high_resolution_clock::now() < target_time);
+        while (chrono::high_resolution_clock::now() < target_time) { this_thread::yield(); }
     }
 
     shutdown(0);
