@@ -5,42 +5,57 @@
 #include <algorithm>
 #include <csignal>
 #include "terminal.h"
-#include "test_functions.h"
 #include "fluid_math.h"
+#include "input_state.h"
+#include "interactive.h"
+#include "settings.h"
 
 using namespace std;
 
 void setup();
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH);
 string get_fps_overlay(float dt);
-void handleInterrupt(int signum);
 void shutdown(int signum);
 
 int main()
 {
-    signal(SIGINT, handleInterrupt);
+    enableANSI();
+
+    signal(SIGINT, shutdown);
 
     ios_base::sync_with_stdio(false);
 
-    setup();
+    sim_config config;
+    vector<string> warnings;
+    get_user_settings(config, warnings);
 
-    const float TARGET_FPS = 165.0f;
+    if (!warnings.empty())
+    {
+        for (const string& w : warnings)
+        {
+            cout << "\033[93m" << w << "\033[0m\n";
+        }
+
+        cout << "Press ENTER to continue...";
+        cin.get();
+        cout << "\n\n";
+    }
+
+    setup();
+    InputState input_state;
+
+    const float TARGET_FPS = config.target_fps;
     const chrono::milliseconds FRAME_DURATION(1000 / (int)TARGET_FPS);
 
     fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
-    vector<char> grid(container.height * container.width, '@');
     string print_string;
     print_string.resize(container.height * ((container.width * 2)+ 1) - 1, ' ');
 
-    // temp emision array
     vector<float> emission_arr;
     emission_arr.resize((container.height + 2) * (container.width + 2));
 
     auto prev_frame_time = chrono::high_resolution_clock::now();
-
-    bool pouring_smoke = false;
-    bool wind_w = false, wind_s = false, wind_a = false, wind_d = false;
 
     bool running = true;
     while (running)
@@ -51,52 +66,11 @@ int main()
         container.dt = elapsed_seconds.count();
         prev_frame_time = frame_start;
 
-        // Read all input (keys pressed) for this frame
-        updateInput();
+        update_input(input_state);
+        apply_user_input(config, container, input_state, emission_arr);
 
-        if (isKeyPressed('q') || isKeyPressed('\x03')) 
-        {
-            running = false;
-        }
-
-        updateActionState(pouring_smoke, ' ');
-        updateActionState(wind_w, 'w');
-        updateActionState(wind_s, 's');
-        updateActionState(wind_a, 'a');
-        updateActionState(wind_d, 'd');
-
-        int center_x = container.width / 2;
-        int center_y = container.height / 2;
-        int top_y = 2;
-
-        if (pouring_smoke) 
-        {
-            // Add density
-            emission_arr[container.IDX(center_x, top_y)] = 1000.0f;
-            emission_arr[container.IDX(center_x + 1, top_y)] = 1000.0f;
-            emission_arr[container.IDX(center_x, top_y)] = 1000.0f;
-
-            container.vel_y_prev[container.IDX(center_x, top_y)] = 500.0f;
-            container.vel_y_prev[container.IDX(center_x - 1, top_y)] = 500.0f;
-            container.vel_y_prev[container.IDX(center_x + 1, top_y)] = 500.0f;
-        }
-
-        float wind_force = 500.0f;
-        if (wind_w) {
-            container.vel_y_prev[container.IDX(center_x, container.height - 2)] = -wind_force;
-        }
-        if (wind_s) {
-            container.vel_y_prev[container.IDX(center_x, 2)] = wind_force;
-        }
-        if (wind_a) {
-            container.vel_x_prev[container.IDX(container.width - 2, center_y)] = -wind_force;
-        }
-        if (wind_d) {
-            container.vel_x_prev[container.IDX(2, center_y)] = wind_force;
-        }
-
-        vel_step(0.001f, container);
-        dens_step(0, 0.00001f, emission_arr, container);
+        vel_step(config.visc, container);
+        dens_step(0, config.diff, emission_arr, container);
 
         set_print_string(print_string, container.dens, container.height, container.width);
 
@@ -117,8 +91,6 @@ int main()
 
 void setup()
 {
-    enableANSI();
-
     cout << "=== ASCII Smoke Simulation ===\n\n";
     cout << "Controls:\n";
 
@@ -132,12 +104,14 @@ void setup()
 
         cout << " - Press [Q] to quit the simulation.\n\n";
 
+        cout << "NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n";
+
         cout << "For the best experience, please maximize your terminal or press F11 now.\n";
         cout << "Press ENTER to start the simulation...";
         cin.get();
 
-    // enters the alternate screen buffer
-    cout << "\033[?1049h" << flush;
+    // enters the alternate screen buffer and hides the cursor
+    cout << "\033[?1049h\033[?25l" << flush;
 
     initTerminalSize();
 }
@@ -157,7 +131,6 @@ inline char map_to_char(float density, const string& str)
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
 {
     static string str = R"( .`'-_,:~=;!*+<>\/|?#@)";
-    // static string str2 = R"( .~=co)x(O0Q&#%B@)";
 
     int grid_stride = TERMINAL_WIDTH + 2;
     int string_index = 0;
@@ -208,7 +181,7 @@ void shutdown(int signum = 0)
 {
     restoreTerminal();
     // \033[?1049l exits the alternate screen buffer
-    // \033[?25h  restores the cursor (if you ever decide to hide it)
+    // \033[?25h  restores the cursor
     // \033[0m    resets all colors
     cout << "\033[?1049l\033[?25h\033[0m" << flush;
     
@@ -218,9 +191,4 @@ void shutdown(int signum = 0)
     } else {
         cout << "\nSimulation finished.\n";
     }
-}
-
-// Update your signal handler to just call the new shutdown function
-void handleInterrupt(int signum) {
-    shutdown(signum);
 }
