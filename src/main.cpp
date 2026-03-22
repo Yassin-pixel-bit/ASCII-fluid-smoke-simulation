@@ -45,7 +45,7 @@ int main()
     InputState input_state;
 
     const float TARGET_FPS = config.target_fps;
-    const chrono::milliseconds FRAME_DURATION(1000 / (int)TARGET_FPS);
+    const chrono::microseconds FRAME_DURATION((int)(1000000.0f / TARGET_FPS));
 
     fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
