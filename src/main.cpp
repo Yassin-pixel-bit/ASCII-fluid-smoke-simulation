@@ -45,7 +45,7 @@ int main()
     InputState input_state;
 
     const float TARGET_FPS = config.target_fps;
-    const chrono::milliseconds FRAME_DURATION(1000 / (int)TARGET_FPS);
+    const chrono::microseconds FRAME_DURATION((int)(1000000.0f / TARGET_FPS));
 
     fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
@@ -63,7 +63,14 @@ int main()
         auto frame_start = chrono::high_resolution_clock::now();
 
         chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
-        container.dt = elapsed_seconds.count();
+        float real_frame_time = elapsed_seconds.count();
+        float current_dt = real_frame_time;
+
+        if (current_dt > 0.016f) {
+            current_dt = 0.016f; 
+        }
+        container.dt = current_dt;
+
         prev_frame_time = frame_start;
 
         update_input(input_state);
@@ -76,12 +83,12 @@ int main()
 
         // using flush to ensure that everything is rendered immediatly.
         cout << "\033[H" << print_string;
-        cout << "\033[H\033[92m" << get_fps_overlay(container.dt) << "\033[0m" << flush;
+        cout << "\033[H\033[92m" << get_fps_overlay(real_frame_time) << "\033[0m" << flush;
 
         auto target_time = frame_start + FRAME_DURATION;
         auto now = chrono::high_resolution_clock::now();
 
-        while (chrono::high_resolution_clock::now() < target_time);
+        while (chrono::high_resolution_clock::now() < target_time) { this_thread::yield(); }
     }
 
     shutdown(0);
