@@ -29,7 +29,6 @@ void init_ini()
 
     // Write the fluid Settings section
     out_file << "[" << FLUID_HEADER << "]\n";
-    out_file << "[fluid Settings]\n";
     out_file << "; suggestion: keep the values below 1\n";
     out_file << "viscousity = 0.001\n";
     out_file << "diffusion = 0.00001\n";
