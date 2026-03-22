@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <csignal>
 #include "terminal.h"
-#include "test_functions.h"
 #include "fluid_math.h"
 #include "input_state.h"
 #include "interactive.h"
