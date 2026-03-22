@@ -63,7 +63,8 @@ int main()
         auto frame_start = chrono::high_resolution_clock::now();
 
         chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
-        float current_dt = elapsed_seconds.count();
+        float real_frame_time = elapsed_seconds.count();
+        float current_dt = real_frame_time;
 
         if (current_dt > 0.016f) {
             current_dt = 0.016f; 
@@ -82,7 +83,7 @@ int main()
 
         // using flush to ensure that everything is rendered immediatly.
         cout << "\033[H" << print_string;
-        cout << "\033[H\033[92m" << get_fps_overlay(container.dt) << "\033[0m" << flush;
+        cout << "\033[H\033[92m" << get_fps_overlay(real_frame_time) << "\033[0m" << flush;
 
         auto target_time = frame_start + FRAME_DURATION;
         auto now = chrono::high_resolution_clock::now();
