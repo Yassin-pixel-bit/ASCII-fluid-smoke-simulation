@@ -15,14 +15,13 @@ using namespace std;
 void setup();
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH);
 string get_fps_overlay(float dt);
-void handleInterrupt(int signum);
 void shutdown(int signum);
 
 int main()
 {
     enableANSI();
 
-    signal(SIGINT, handleInterrupt);
+    signal(SIGINT, shutdown);
 
     ios_base::sync_with_stdio(false);
 
@@ -111,8 +110,8 @@ void setup()
         cout << "Press ENTER to start the simulation...";
         cin.get();
 
-    // enters the alternate screen buffer
-    cout << "\033[?1049h" << flush;
+    // enters the alternate screen buffer and hides the cursor
+    cout << "\033[?1049h\033[?25l" << flush;
 
     initTerminalSize();
 }
@@ -132,7 +131,6 @@ inline char map_to_char(float density, const string& str)
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
 {
     static string str = R"( .`'-_,:~=;!*+<>\/|?#@)";
-    // static string str2 = R"( .~=co)x(O0Q&#%B@)";
 
     int grid_stride = TERMINAL_WIDTH + 2;
     int string_index = 0;
@@ -193,9 +191,4 @@ void shutdown(int signum = 0)
     } else {
         cout << "\nSimulation finished.\n";
     }
-}
-
-// Update your signal handler to just call the new shutdown function
-void handleInterrupt(int signum) {
-    shutdown(signum);
 }
