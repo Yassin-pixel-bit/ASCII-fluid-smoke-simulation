@@ -9,6 +9,7 @@
 #include "fluid_math.h"
 #include "input_state.h"
 #include "interactive.h"
+#include "settings.h"
 
 using namespace std;
 
@@ -20,14 +21,32 @@ void shutdown(int signum);
 
 int main()
 {
+    enableANSI();
+
     signal(SIGINT, handleInterrupt);
 
     ios_base::sync_with_stdio(false);
 
+    sim_config config;
+    vector<string> warnings;
+    get_user_settings(config, warnings);
+
+    if (!warnings.empty())
+    {
+        for (const string& w : warnings)
+        {
+            cout << "\033[93m" << w << "\033[0m\n";
+        }
+
+        cout << "Press ENTER to continue...";
+        cin.get();
+        cout << "\n\n";
+    }
+
     setup();
     InputState input_state;
 
-    const float TARGET_FPS = 165.0f;
+    const float TARGET_FPS = config.target_fps;
     const chrono::milliseconds FRAME_DURATION(1000 / (int)TARGET_FPS);
 
     fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
@@ -50,10 +69,10 @@ int main()
         prev_frame_time = frame_start;
 
         update_input(input_state);
-        apply_user_input(container, input_state, emission_arr);
+        apply_user_input(config, container, input_state, emission_arr);
 
-        vel_step(0.001f, container);
-        dens_step(0, 0.00001f, emission_arr, container);
+        vel_step(config.visc, container);
+        dens_step(0, config.diff, emission_arr, container);
 
         set_print_string(print_string, container.dens, container.height, container.width);
 
@@ -74,8 +93,6 @@ int main()
 
 void setup()
 {
-    enableANSI();
-
     cout << "=== ASCII Smoke Simulation ===\n\n";
     cout << "Controls:\n";
 
@@ -88,6 +105,8 @@ void setup()
     #endif
 
         cout << " - Press [Q] to quit the simulation.\n\n";
+
+        cout << "NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n";
 
         cout << "For the best experience, please maximize your terminal or press F11 now.\n";
         cout << "Press ENTER to start the simulation...";
@@ -165,7 +184,7 @@ void shutdown(int signum = 0)
 {
     restoreTerminal();
     // \033[?1049l exits the alternate screen buffer
-    // \033[?25h  restores the cursor (if you ever decide to hide it)
+    // \033[?25h  restores the cursor
     // \033[0m    resets all colors
     cout << "\033[?1049l\033[?25h\033[0m" << flush;
     
