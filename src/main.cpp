@@ -63,7 +63,13 @@ int main()
         auto frame_start = chrono::high_resolution_clock::now();
 
         chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
-        container.dt = elapsed_seconds.count();
+        float current_dt = elapsed_seconds.count();
+
+        if (current_dt > 0.016f) {
+            current_dt = 0.016f; 
+        }
+        container.dt = current_dt;
+
         prev_frame_time = frame_start;
 
         update_input(input_state);
