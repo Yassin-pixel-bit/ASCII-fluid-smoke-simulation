@@ -31,7 +31,7 @@ void init_ini()
     // Write the fluid Settings section
     out_file << "[" << FLUID_HEADER << "]\n";
     out_file << "; suggestion: keep the values below 1\n";
-    out_file << "viscousity = 0.001\n";
+    out_file << "viscosity = 0.001\n";
     out_file << "diffusion = 0.00001\n\n";
 
     // write the emitters settings section
@@ -149,7 +149,7 @@ void read_ini(sim_config& config, vector<string>& warnings)
     // fluid settings
     if (check_section(ini, FLUID_HEADER, warnings))
     {
-        load_float(ini, FLUID_HEADER, "viscousity", config.visc, warnings);
+        load_float(ini, FLUID_HEADER, "viscosity", config.visc, warnings);
         config.visc = max(config.visc, 0.0f);
         load_float(ini, FLUID_HEADER, "diffusion", config.diff, warnings);
         config.diff = max(config.diff, 0.0f);
