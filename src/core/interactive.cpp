@@ -2,24 +2,80 @@
 
 using namespace std;
 
+inline int get_radius(float prct, int side)
+{
+    float radius_pct = prct / 100.0f;
+    int max_radius = side / 2;
+    return (int)(max_radius * radius_pct);
+}
+
+inline float get_dist_wind_force(bool dist, float base_force, int radius)
+{
+    int total_cells = (radius * 2) + 1; // +1 includes the center cell
+    
+    if (dist && total_cells > 0) {
+        return base_force / total_cells;
+    }
+    return base_force;
+}
+
 void add_wind(const sim_config& config, fluid_container& container, const InputState& input_state)
 {
         int center_x = container.width / 2;
         int center_y = container.height / 2;
-        int top_y = 2;
+        int edge_offset = 2;
 
-        float wind_force = config.wind_force;
-        if (input_state.wind_w) {
-            container.vel_y_prev[container.IDX(center_x, container.height - 2)] = -wind_force;
+        if (input_state.wind_w) 
+        {
+            int radius = get_radius(config.bottom_fan_r, container.width);
+            float force = get_dist_wind_force(config.dist_wind_f, config.wind_force, radius);
+
+            for (int i = -radius; i <= radius; i++)
+            {
+                int target_x = center_x + i;
+                if (target_x > 0 && target_x < container.width - 1) {
+                    container.vel_y_prev[container.IDX(target_x, container.height - edge_offset)] += -force;
+                }
+            }
         }
-        if (input_state.wind_s) {
-            container.vel_y_prev[container.IDX(center_x, top_y)] = wind_force;
+        if (input_state.wind_s) 
+        {
+            int radius = get_radius(config.top_fan_r, container.width);
+            float force = get_dist_wind_force(config.dist_wind_f, config.wind_force, radius);
+
+            for (int i = -radius; i <= radius; i++)
+            {
+                int target_x = center_x + i;
+                if (target_x > 0 && target_x < container.width - 1) {
+                    container.vel_y_prev[container.IDX(target_x, edge_offset)] += force;
+                }
+            }
         }
-        if (input_state.wind_a) {
-            container.vel_x_prev[container.IDX(container.width - 2, center_y)] = -wind_force;
+        if (input_state.wind_a) 
+        {
+            int radius = get_radius(config.right_fan_r, container.height);
+            float force = get_dist_wind_force(config.dist_wind_f, config.wind_force, radius);
+
+            for (int i = -radius; i <= radius; i++)
+            {
+                int target_y = center_y + i;
+                if (target_y > 0 && target_y < container.height - 1) {
+                    container.vel_x_prev[container.IDX(container.width - edge_offset, target_y)] += -force;
+                }
+            }
         }
-        if (input_state.wind_d) {
-            container.vel_x_prev[container.IDX(top_y, center_y)] = wind_force;
+        if (input_state.wind_d) 
+        {
+            int radius = get_radius(config.left_fan_r, container.height);
+            float force = get_dist_wind_force(config.dist_wind_f, config.wind_force, radius);
+
+            for (int i = -radius; i <= radius; i++)
+            {
+                int target_y = center_y + i;
+                if (target_y > 0 && target_y < container.height - 1) {
+                    container.vel_x_prev[container.IDX(edge_offset, target_y)] += force;
+                }
+            }
         }
 }
 
