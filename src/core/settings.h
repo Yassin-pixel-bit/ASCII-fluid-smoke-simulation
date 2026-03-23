@@ -15,6 +15,13 @@ struct sim_config {
     float spawn_y = 0.0f;
     float visc = 0.001f;
     float diff = 0.00001f;
+    float top_fan_r = 10.0f;
+    float bottom_fan_r = 10.0f;
+    float right_fan_r = 10.0f;
+    float left_fan_r = 10.0f;
+    bool dist_wind_f = true;
+    float fluid_emitter_r = 10.0f;
+    bool dist_fluid = true;
 };
 
 void get_user_settings(sim_config& config, std::vector<std::string>& warnings);
