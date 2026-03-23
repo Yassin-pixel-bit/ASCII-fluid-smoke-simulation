@@ -32,12 +32,8 @@ int main()
     if (!warnings.empty())
     {
         for (const string& w : warnings)
-        {
             cout << "\033[93m" << w << "\033[0m\n";
-        }
 
-        cout << "Press ENTER to continue...";
-        cin.get();
         cout << "\n\n";
     }
 
