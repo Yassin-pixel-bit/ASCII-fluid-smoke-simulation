@@ -23,6 +23,11 @@ void add_wind(const sim_config& config, fluid_container& container, const InputS
         }
 }
 
+inline bool in_brush_bound(int i, int j, int radius)
+{
+    return i * i + j * j <= radius * radius;
+}
+
 void add_sources(const sim_config& config, fluid_container& container, const InputState& input_state, vector<float>& emission_arr)
 {
     int fluid_x = 2 + (int)((container.width - 3) * config.spawn_x);
@@ -30,17 +35,52 @@ void add_sources(const sim_config& config, fluid_container& container, const Inp
 
     if (input_state.pouring_smoke)
     {
+        float radius_pct = config.fluid_emitter_r / 100.0f;
+        int max_radius = std::min(container.width, container.height) / 2;
+        int radius = (int)(max_radius * radius_pct);
+
+        if (radius < 0) radius = 0;
+
         float amount = config.fluid_amount;
         float push = config.spawn_push;
 
-        // Add density
-        emission_arr[container.IDX(fluid_x, fluid_y)] = amount;
-        emission_arr[container.IDX(fluid_x + 1, fluid_y)] = amount;
-        emission_arr[container.IDX(fluid_x - 1, fluid_y)] = amount;
+        float push_dir = config.spawn_y < 0.5f ? push : -push;
 
-        container.vel_y_prev[container.IDX(fluid_x, fluid_y)] = config.spawn_y < 0.5 ? push : -push;
-        container.vel_y_prev[container.IDX(fluid_x - 1, fluid_y)] = config.spawn_y < 0.5 ? push : -push;
-        container.vel_y_prev[container.IDX(fluid_x + 1, fluid_y)] = config.spawn_y < 0.5 ? push : -push;
+        int cells_in_brush = 1;
+        if (config.dist_fluid && radius > 0)
+        {
+            cells_in_brush = 0;
+            for (int i = -radius; i <= radius; i++) {
+                for (int j = -radius; j <= radius; j++) {
+                    if (in_brush_bound(i, j, radius)) {
+                        cells_in_brush++;
+                    }
+                }
+            }
+            amount = amount / cells_in_brush;
+            push_dir = push_dir / cells_in_brush;
+        }
+
+        for (int i = -radius; i <= radius; i++) 
+        {
+            for (int j = -radius; j <= radius; j++) 
+            {
+                // Check if the current offset is inside the circle
+                if (in_brush_bound(i, j, radius)) 
+                {
+                    int target_x = fluid_x + j;
+                    int target_y = fluid_y + i;
+
+                    // Keep the brush strictly inside the grid boundaries
+                    if (target_x > 0 && target_x < container.width - 1 &&
+                        target_y > 0 && target_y < container.height - 1) 
+                    {
+                        emission_arr[container.IDX(target_x, target_y)] += amount;
+                        container.vel_y_prev[container.IDX(target_x, target_y)] += push_dir;
+                    }
+                }
+            }
+        }
     }
 }
 
