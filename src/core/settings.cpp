@@ -21,8 +21,8 @@ void init_ini()
 
     // Write the Simulation Values section
     out_file << "[" << SIM_HEADER << "]\n";
-    out_file << "wind_force = 500.0\n";
-    out_file << "fluid_amount = 1000.0\n";
+    out_file << "wind_force = 700.0\n";
+    out_file << "fluid_amount = 650.0\n";
     out_file << "spawn_push = 500.0\n";
     out_file << "; values from 0.0 to 1.0\n";
     out_file << "spawn_x = 0.5\n";
@@ -37,14 +37,14 @@ void init_ini()
     // write the emitters settings section
     out_file << "[" << EMITTERS_HEADER << "]\n";
     out_file << "; values from 0.0 to 100.0. The percentage of the screen width/height used as the fan radius.\n";
-    out_file << "top_fan_radius = 10.0\n";
-    out_file << "bottom_fan_radius = 10.0\n";
-    out_file << "right_fan_radius = 10.0\n";
-    out_file << "left_fan_radius = 10.0\n";
+    out_file << "top_fan_radius = 5.0\n";
+    out_file << "bottom_fan_radius = 5.0\n";
+    out_file << "right_fan_radius = 5.0\n";
+    out_file << "left_fan_radius = 5.0\n";
     out_file << "; 0 = Additive (massive force on every cell), 1 = Distributed (force is divided evenly across the radius)\n";
     out_file << "distribute_wind_force = 1\n";
     out_file << "; values from 0.0 to 100.0. The percentage of the screen used for the smoke spawn radius.\n";
-    out_file << "fluid_emitter_radius = 5.0\n";
+    out_file << "fluid_emitter_radius = 10.0\n";
     out_file << "; 0 = Additive (solid block of smoke), 1 = Distributed (soft, thin smoke cloud)\n";
     out_file << "distribute_fluid_density = 1\n";
 
