@@ -6,6 +6,10 @@ file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 add_executable(main ${SOURCES})
 
+if(WIN32)
+    target_link_libraries(main PRIVATE winmm)
+endif()
+
 target_include_directories(main PRIVATE 
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/core

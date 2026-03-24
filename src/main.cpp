@@ -4,6 +4,7 @@
 #include <thread>
 #include <algorithm>
 #include <csignal>
+#include "engine_timing.h"
 #include "terminal.h"
 #include "fluid_math.h"
 #include "input_state.h"
@@ -20,7 +21,7 @@ void shutdown(int signum);
 int main()
 {
     enableANSI();
-
+    
     signal(SIGINT, shutdown);
 
     ios_base::sync_with_stdio(false);
@@ -51,12 +52,13 @@ int main()
     vector<float> emission_arr;
     emission_arr.resize((container.height + 2) * (container.width + 2));
 
-    auto prev_frame_time = chrono::high_resolution_clock::now();
+    auto prev_frame_time = chrono::steady_clock::now();
 
     bool running = true;
+
     while (running)
     {
-        auto frame_start = chrono::high_resolution_clock::now();
+        auto frame_start = chrono::steady_clock::now();
 
         chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
         float real_frame_time = elapsed_seconds.count();
@@ -82,19 +84,29 @@ int main()
         cout << "\033[H\033[92m" << get_fps_overlay(real_frame_time) << "\033[0m" << flush;
 
         auto target_time = frame_start + FRAME_DURATION;
-        auto now = chrono::high_resolution_clock::now();
+        auto now = chrono::steady_clock::now();
 
-        while (chrono::high_resolution_clock::now() < target_time) { this_thread::yield(); }
+        if (now < target_time)
+        {
+            auto remaining_time = target_time - now;
+            
+            double remaining_ms = chrono::duration<double, milli>(remaining_time).count();
+             
+            sleep_exact(remaining_ms);
+        }
     }
 
     shutdown(0);
-
     return 0;
+
 }
 
 void setup()
 {
     cout << "=== ASCII Smoke Simulation ===\n\n";
+
+    init_engine_timing();
+
     cout << "Controls:\n";
 
     #ifdef _WIN32
@@ -133,6 +145,7 @@ inline char map_to_char(float density, const string& str)
 
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
 {
+    // TODO: Improve preformance
     static string str = R"( .`'-_,:~=;!*+<>\/|?#@)";
 
     int grid_stride = TERMINAL_WIDTH + 2;
@@ -162,7 +175,7 @@ string get_fps_overlay(float dt)
 {
     static float fps_timer = 0.0f;
     static int frame_count = 0;
-    static std::string fps_display = "FPS: --";
+    static string fps_display = "FPS: --";
 
     fps_timer += dt;
     frame_count++;
@@ -170,7 +183,7 @@ string get_fps_overlay(float dt)
     // Update the string only once per second so it is readable
     if (fps_timer >= 1.0f)
     {
-        fps_display = "FPS: " + std::to_string(frame_count);
+        fps_display = "FPS: " + to_string(frame_count);
         
         // Reset counters (subtracting 1.0f instead of setting to 0 keeps the remainder for precise timing)
         fps_timer -= 1.0f;
@@ -182,6 +195,7 @@ string get_fps_overlay(float dt)
 
 void shutdown(int signum = 0)
 {
+    shutdown_engine_timing();
     restoreTerminal();
     // \033[?1049l exits the alternate screen buffer
     // \033[?25h  restores the cursor
