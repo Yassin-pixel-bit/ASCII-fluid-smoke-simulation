@@ -1,15 +1,10 @@
 #include <iostream>
 #include <vector>
-
-#ifdef _WIN32
-    #include <windows.h>
-    #include <timeapi.h>
-#endif
-
 #include <chrono>
 #include <thread>
 #include <algorithm>
 #include <csignal>
+#include "engine_timing.h"
 #include "terminal.h"
 #include "fluid_math.h"
 #include "input_state.h"
@@ -18,15 +13,10 @@
 
 using namespace std;
 
-double OS_PERIOD = 1.0; 
-double OS_TOLERANCE = 1.5;
-
 void setup();
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH);
 string get_fps_overlay(float dt);
 void shutdown(int signum);
-void calibrate_os_timer();
-void sleep_exact(double milliseconds);
 
 int main()
 {
@@ -47,10 +37,6 @@ int main()
 
         cout << "\n\n";
     }
-
-    #ifdef _WIN32
-    timeBeginPeriod(1);
-    #endif
 
     setup();
     InputState input_state;
@@ -110,92 +96,16 @@ int main()
         }
     }
 
-    #ifdef _WIN32
-    timeEndPeriod(1);
-    #endif
-
     shutdown(0);
     return 0;
 
-}
-
-void calibrate_os_timer()
-{
-    cout << "Calibrating OS scheduler resolution...";
-
-    const int iterations = 20;
-    double total_time = 0.0;
-    double max_time = 0.0;
-    
-    // Warm up - necessary????
-    #ifdef _WIN32
-        Sleep(1);
-    #else
-        this_thread::sleep_for(chrono::milliseconds(1));
-    #endif
-
-    for (int i = 0; i < iterations; ++i)
-    {
-        auto start = chrono::steady_clock::now();
-        
-        #ifdef _WIN32
-            Sleep(1);
-        #else
-            this_thread::sleep_for(chrono::milliseconds(1));
-        #endif
-        
-        auto end = chrono::steady_clock::now();
-        double actual_ms = chrono::duration<double, milli>(end - start).count();
-
-        total_time += actual_ms;
-        if (actual_ms > max_time) {
-            max_time = actual_ms;
-        }
-    }
-
-
-    OS_PERIOD = total_time / iterations;
-
-    OS_TOLERANCE = max_time - OS_PERIOD;
-
-    if (OS_TOLERANCE < 0.5) OS_TOLERANCE = 0.5;
-
-    cout << "Done.\n";
-    cout << "Detected PERIOD: " << OS_PERIOD << "ms | TOLERANCE: " << OS_TOLERANCE << "ms\n\n";
-}
-
-void sleep_exact(double milliseconds)
-{
-    auto t0 = chrono::steady_clock::now();
-    auto target = t0 + chrono::nanoseconds(int64_t(milliseconds * 1e6));
-
-    // sleep
-    double ms = milliseconds - (OS_PERIOD + OS_TOLERANCE);
-    int ticks = (int)(ms / OS_PERIOD);
-    if (ticks > 0)
-    {
-        int sleep_ms = (int)(ticks * OS_PERIOD);
-
-        #ifdef _WIN32
-            // I hate windows
-            Sleep(sleep_ms);
-        #else
-            // Standard C++ sleep for Linux/macOS
-            this_thread::sleep_for(chrono::milliseconds(sleep_ms));
-        #endif
-    }
-
-    while (chrono::steady_clock::now() < target)
-    {
-        this_thread::yield();
-    }
 }
 
 void setup()
 {
     cout << "=== ASCII Smoke Simulation ===\n\n";
 
-    calibrate_os_timer();
+    init_engine_timing();
 
     cout << "Controls:\n";
 
@@ -265,7 +175,7 @@ string get_fps_overlay(float dt)
 {
     static float fps_timer = 0.0f;
     static int frame_count = 0;
-    static std::string fps_display = "FPS: --";
+    static string fps_display = "FPS: --";
 
     fps_timer += dt;
     frame_count++;
@@ -273,7 +183,7 @@ string get_fps_overlay(float dt)
     // Update the string only once per second so it is readable
     if (fps_timer >= 1.0f)
     {
-        fps_display = "FPS: " + std::to_string(frame_count);
+        fps_display = "FPS: " + to_string(frame_count);
         
         // Reset counters (subtracting 1.0f instead of setting to 0 keeps the remainder for precise timing)
         fps_timer -= 1.0f;
@@ -285,6 +195,7 @@ string get_fps_overlay(float dt)
 
 void shutdown(int signum = 0)
 {
+    shutdown_engine_timing();
     restoreTerminal();
     // \033[?1049l exits the alternate screen buffer
     // \033[?25h  restores the cursor
