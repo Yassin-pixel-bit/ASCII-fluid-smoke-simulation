@@ -51,12 +51,12 @@ int main()
     vector<float> emission_arr;
     emission_arr.resize((container.height + 2) * (container.width + 2));
 
-    auto prev_frame_time = chrono::high_resolution_clock::now();
+    auto prev_frame_time = chrono::steady_clock::now();
 
     bool running = true;
     while (running)
     {
-        auto frame_start = chrono::high_resolution_clock::now();
+        auto frame_start = chrono::steady_clock::now();
 
         chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
         float real_frame_time = elapsed_seconds.count();
@@ -82,9 +82,9 @@ int main()
         cout << "\033[H\033[92m" << get_fps_overlay(real_frame_time) << "\033[0m" << flush;
 
         auto target_time = frame_start + FRAME_DURATION;
-        auto now = chrono::high_resolution_clock::now();
+        auto now = chrono::steady_clock::now();
 
-        while (chrono::high_resolution_clock::now() < target_time) { this_thread::yield(); }
+        while (chrono::steady_clock::now() < target_time) { this_thread::yield(); }
     }
 
     shutdown(0);
