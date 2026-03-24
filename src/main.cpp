@@ -1,5 +1,11 @@
 #include <iostream>
 #include <vector>
+
+#ifdef _WIN32
+    #include <windows.h>
+    #include <timeapi.h>
+#endif
+
 #include <chrono>
 #include <thread>
 #include <algorithm>
@@ -12,15 +18,20 @@
 
 using namespace std;
 
+double OS_PERIOD = 1.0; 
+double OS_TOLERANCE = 1.5;
+
 void setup();
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH);
 string get_fps_overlay(float dt);
 void shutdown(int signum);
+void calibrate_os_timer();
+void sleep_exact(double milliseconds);
 
 int main()
 {
     enableANSI();
-
+    
     signal(SIGINT, shutdown);
 
     ios_base::sync_with_stdio(false);
@@ -36,6 +47,10 @@ int main()
 
         cout << "\n\n";
     }
+
+    #ifdef _WIN32
+    timeBeginPeriod(1);
+    #endif
 
     setup();
     InputState input_state;
@@ -54,6 +69,7 @@ int main()
     auto prev_frame_time = chrono::steady_clock::now();
 
     bool running = true;
+
     while (running)
     {
         auto frame_start = chrono::steady_clock::now();
@@ -84,17 +100,103 @@ int main()
         auto target_time = frame_start + FRAME_DURATION;
         auto now = chrono::steady_clock::now();
 
-        while (chrono::steady_clock::now() < target_time) { this_thread::yield(); }
+        if (now < target_time)
+        {
+            auto remaining_time = target_time - now;
+            
+            double remaining_ms = chrono::duration<double, milli>(remaining_time).count();
+             
+            sleep_exact(remaining_ms);
+        }
     }
 
-    shutdown(0);
+    #ifdef _WIN32
+    timeEndPeriod(1);
+    #endif
 
+    shutdown(0);
     return 0;
+
+}
+
+void calibrate_os_timer()
+{
+    cout << "Calibrating OS scheduler resolution...";
+
+    const int iterations = 20;
+    double total_time = 0.0;
+    double max_time = 0.0;
+    
+    // Warm up - necessary????
+    #ifdef _WIN32
+        Sleep(1);
+    #else
+        this_thread::sleep_for(chrono::milliseconds(1));
+    #endif
+
+    for (int i = 0; i < iterations; ++i)
+    {
+        auto start = chrono::steady_clock::now();
+        
+        #ifdef _WIN32
+            Sleep(1);
+        #else
+            this_thread::sleep_for(chrono::milliseconds(1));
+        #endif
+        
+        auto end = chrono::steady_clock::now();
+        double actual_ms = chrono::duration<double, milli>(end - start).count();
+
+        total_time += actual_ms;
+        if (actual_ms > max_time) {
+            max_time = actual_ms;
+        }
+    }
+
+
+    OS_PERIOD = total_time / iterations;
+
+    OS_TOLERANCE = max_time - OS_PERIOD;
+
+    if (OS_TOLERANCE < 0.5) OS_TOLERANCE = 0.5;
+
+    cout << "Done.\n";
+    cout << "Detected PERIOD: " << OS_PERIOD << "ms | TOLERANCE: " << OS_TOLERANCE << "ms\n\n";
+}
+
+void sleep_exact(double milliseconds)
+{
+    auto t0 = chrono::steady_clock::now();
+    auto target = t0 + chrono::nanoseconds(int64_t(milliseconds * 1e6));
+
+    // sleep
+    double ms = milliseconds - (OS_PERIOD + OS_TOLERANCE);
+    int ticks = (int)(ms / OS_PERIOD);
+    if (ticks > 0)
+    {
+        int sleep_ms = (int)(ticks * OS_PERIOD);
+
+        #ifdef _WIN32
+            // I hate windows
+            Sleep(sleep_ms);
+        #else
+            // Standard C++ sleep for Linux/macOS
+            this_thread::sleep_for(chrono::milliseconds(sleep_ms));
+        #endif
+    }
+
+    while (chrono::steady_clock::now() < target)
+    {
+        this_thread::yield();
+    }
 }
 
 void setup()
 {
     cout << "=== ASCII Smoke Simulation ===\n\n";
+
+    calibrate_os_timer();
+
     cout << "Controls:\n";
 
     #ifdef _WIN32
@@ -133,6 +235,7 @@ inline char map_to_char(float density, const string& str)
 
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
 {
+    // TODO: Improve preformance
     static string str = R"( .`'-_,:~=;!*+<>\/|?#@)";
 
     int grid_stride = TERMINAL_WIDTH + 2;
