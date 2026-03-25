@@ -14,29 +14,33 @@ void add_source(vector<float>& grid, vector<float>& emission_array, fluid_contai
 
 void set_bnd(int b, vector<float>& grid, fluid_container& container)
 {
+    int grid_stride = container.width + 2;
+
+    // Vertical Walls (Walk down by adding grid_stride)
     for (int i = 1; i <= container.height; i++)
     {
-        grid[container.IDX(0, i)] = b == 1 ? -grid[container.IDX(1,i)] : grid[container.IDX(1,i)];
-        grid[container.IDX(container.width + 1, i)] = b == 1 ? -grid[container.IDX(container.width,i)] : grid[container.IDX(container.width,i)];
+        int left_wall = i * grid_stride;
+        int right_wall = left_wall + container.width + 1;
+
+        grid[left_wall] = b == 1 ? -grid[left_wall + 1] : grid[left_wall + 1];
+        grid[right_wall] = b == 1 ? -grid[right_wall - 1] : grid[right_wall - 1];
     }
 
     for (int i = 1; i <= container.width; i++)
     {
-        grid[container.IDX(i, 0)] = b == 2 ? -grid[container.IDX(i,1)] : grid[container.IDX(i,1)];
-        grid[container.IDX(i, container.height + 1)] = b == 2 ? -grid[container.IDX(i, container.height)] : grid[container.IDX(i, container.height)];
+        int top_wall = i;
+        int bottom_wall = (container.height + 1) * grid_stride + i;
+
+        grid[top_wall] = b == 2 ? -grid[top_wall + grid_stride] : grid[top_wall + grid_stride];
+        grid[bottom_wall] = b == 2 ? -grid[bottom_wall - grid_stride] : grid[bottom_wall - grid_stride];
     }
 
-    grid[container.IDX(0, 0)] = 
-        0.5f * (grid[container.IDX(1, 0)] + grid[container.IDX(0, 1)]);
-        
-    grid[container.IDX(0, container.height + 1)] = 
-        0.5f * (grid[container.IDX(1, container.height + 1)] + grid[container.IDX(0, container.height)]);
-        
-    grid[container.IDX(container.width + 1, 0)] = 
-        0.5f * (grid[container.IDX(container.width, 0)] + grid[container.IDX(container.width + 1, 1)]);
-        
-    grid[container.IDX(container.width + 1, container.height + 1)] = 
-        0.5f * (grid[container.IDX(container.width, container.height + 1)] + grid[container.IDX(container.width + 1, container.height)]);
+    // Corners (Hardcoded absolute indices)
+    int bottom_left_corner = (container.height + 1) * grid_stride;
+    grid[0] = 0.5f * (grid[1] + grid[grid_stride]);
+    grid[bottom_left_corner] = 0.5f * (grid[bottom_left_corner + 1] + grid[bottom_left_corner - grid_stride]);
+    grid[container.width + 1] = 0.5f * (grid[container.width] + grid[container.width + 1 + grid_stride]);
+    grid[bottom_left_corner + container.width + 1] = 0.5f * (grid[bottom_left_corner + container.width] + grid[bottom_left_corner + container.width + 1 - grid_stride]);
 }
 
 void lin_solve(int boundary_t, std::vector<float>& x, const std::vector<float>& x0, float a, float c, fluid_container& container)
