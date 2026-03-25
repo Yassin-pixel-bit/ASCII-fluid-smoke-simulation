@@ -119,39 +119,41 @@ void advect(int boundary_t, vector<float>& curr_state, const vector<float>& prev
 void project(vector<float>& u, vector<float>& v, vector<float>& pressure, vector<float>& div, fluid_container& container)
 {
     float h = 1.0f / max(container.height, container.width);
-    
+    int grid_stride = container.width + 2;
+
+    float half_h = -0.5f * h;
+    int center = grid_stride + 1;
     for (int i = 1; i <= container.height; i++)
     {
         for (int j = 1; j <= container.width; j++)
         {
-            div[container.IDX(j, i)] = -0.5 * h * (u[container.IDX(j + 1, i)] - u[container.IDX(j - 1, i)] + 
-                                                   v[container.IDX(j, i + 1)] - v[container.IDX(j, i - 1)]);
-            pressure[container.IDX(j, i)] = 0.0f;
+            div[center] = half_h * (u[center + 1] - u[center - 1] + 
+                                    v[center + grid_stride] - v[center - grid_stride]);
+            pressure[center] = 0.0f;
+            center++;
         }
+        // Jump walls
+        center += 2;
     }
     set_bnd(0, div, container);
     set_bnd(0, pressure, container);
 
-    for (int k = 0; k < LIN_SOL_MAX; k++)
-    {
-        for (int i = 1; i <= container.height; i++)
-        {
-            for (int j = 1; j <= container.width; j++)
-            {
-                pressure[container.IDX(j, i)] = (div[container.IDX(j, i)] + pressure[container.IDX(j - 1, i)] + pressure[container.IDX(j + 1, i)] + pressure[container.IDX(j, i - 1)] + pressure[container.IDX(j, i + 1)]) / 4;
-            }
-        }
-        set_bnd(0, pressure, container);
-    }
+    lin_solve(0, pressure, div, 1.0f, 4.0f, container);
 
     float scale = 0.5f / h;
+    // Reset pointer to top-left
+    center = grid_stride + 1;
     for (int i = 1; i <= container.height; i++)
     {
         for (int j = 1; j <= container.width; j++)
         {
-            u[container.IDX(j, i)] -= scale * (pressure[container.IDX(j + 1, i)] - pressure[container.IDX(j - 1, i)]);
-            v[container.IDX(j, i)] -= scale * (pressure[container.IDX(j, i + 1)] - pressure[container.IDX(j, i - 1)]);
+            u[center] -= scale * (pressure[center + 1] - pressure[center - 1]);
+            v[center] -= scale * (pressure[center + grid_stride] - pressure[center - grid_stride]);
+            center++;
         }
+
+        // Jump walls
+        center += 2;
     }
     set_bnd(1, u, container);
     set_bnd(2, v, container);
