@@ -41,22 +41,33 @@ void set_bnd(int b, vector<float>& grid, fluid_container& container)
 
 void lin_solve(int boundary_t, std::vector<float>& x, const std::vector<float>& x0, float a, float c, fluid_container& container)
 {
+    int grid_stride = container.width + 2;
+    
+    float inv_c = 1.0f / c;
+
     for (int k = 0; k < LIN_SOL_MAX; k++)
     {
+        int center = grid_stride + 1;
+
         for (int i = 1; i <= container.height; i++)
         {
             for (int j = 1; j <= container.width; j++)
             {
-                x[container.IDX(j, i)] = 
-                (x0[container.IDX(j, i)] + 
+                x[center] = 
+                (x0[center] + 
                     a * (
-                        x[container.IDX(j - 1, i)] + 
-                        x[container.IDX(j + 1, i)] + 
-                        x[container.IDX(j, i - 1)] + 
-                        x[container.IDX(j, i + 1)]
+                        x[center - 1] + 
+                        x[center + 1] + 
+                        x[center - grid_stride] + 
+                        x[center + grid_stride]
                     )
-                ) / c;
+                ) * inv_c;
+
+                center++;
             }
+
+            // jump over the right wall and next left wall.
+            center += 2;
         }
         set_bnd(boundary_t, x, container);
     }
