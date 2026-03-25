@@ -18,6 +18,9 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
 string get_fps_overlay(float dt);
 void shutdown(int signum);
 
+constexpr string_view render_str = R"( .`'-_,:~=;!*+<>\/|?#@)";
+constexpr int render_str_len = render_str.size();
+
 int main()
 {
     enableANSI();
@@ -131,39 +134,40 @@ void setup()
     initTerminalSize();
 }
 
-inline char map_to_char(float density, const string& str)
+inline char map_to_char(float density)
 {
-    int max_index = str.length() - 1;
+    int max_index = render_str_len - 1;
 
     int index = (int)(density * max_index);
     
     // Clamp using the dynamic max_index
-    index = std::clamp(index, 0, max_index);
+    index = clamp(index, 0, max_index);
     
-    return str[index];
+    return render_str[index];
 }
 
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
 {
     // TODO: Improve preformance
-    static string str = R"( .`'-_,:~=;!*+<>\/|?#@)";
-
     int grid_stride = TERMINAL_WIDTH + 2;
     int string_index = 0;
+
+    // Skip the top boundary wall, and the first left boundary wall
+    int fluid_index = grid_stride + 1;
 
     for (int i = 0; i < TERMINAL_LEN; i++)
     {
         for (int j = 0; j < TERMINAL_WIDTH; j++)
         {
-            int grid_x = j + 1;
-            int grid_y = i + 1;
-
-            int fluid_index = (grid_y * grid_stride) + grid_x;
-            char c = map_to_char(grid[fluid_index], str);
+            char c = map_to_char(grid[fluid_index]);
+            fluid_index++;
 
             print_string[string_index++] = c;
             print_string[string_index++] = c;
         }
+
+        // Jump over the right wall (+1) and the next row's left wall (+1)
+        fluid_index += 2;
 
         // as long as we are not at the last row add a newline char
         if ((i + 1) != TERMINAL_LEN)
