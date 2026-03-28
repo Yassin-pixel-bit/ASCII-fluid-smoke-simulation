@@ -14,49 +14,64 @@ void add_source(vector<float>& grid, vector<float>& emission_array, fluid_contai
 
 void set_bnd(int b, vector<float>& grid, fluid_container& container)
 {
+    int grid_stride = container.width + 2;
+
+    // Vertical Walls (Walk down by adding grid_stride)
     for (int i = 1; i <= container.height; i++)
     {
-        grid[container.IDX(0, i)] = b == 1 ? -grid[container.IDX(1,i)] : grid[container.IDX(1,i)];
-        grid[container.IDX(container.width + 1, i)] = b == 1 ? -grid[container.IDX(container.width,i)] : grid[container.IDX(container.width,i)];
+        int left_wall = i * grid_stride;
+        int right_wall = left_wall + container.width + 1;
+
+        grid[left_wall] = b == 1 ? -grid[left_wall + 1] : grid[left_wall + 1];
+        grid[right_wall] = b == 1 ? -grid[right_wall - 1] : grid[right_wall - 1];
     }
 
     for (int i = 1; i <= container.width; i++)
     {
-        grid[container.IDX(i, 0)] = b == 2 ? -grid[container.IDX(i,1)] : grid[container.IDX(i,1)];
-        grid[container.IDX(i, container.height + 1)] = b == 2 ? -grid[container.IDX(i, container.height)] : grid[container.IDX(i, container.height)];
+        int top_wall = i;
+        int bottom_wall = (container.height + 1) * grid_stride + i;
+
+        grid[top_wall] = b == 2 ? -grid[top_wall + grid_stride] : grid[top_wall + grid_stride];
+        grid[bottom_wall] = b == 2 ? -grid[bottom_wall - grid_stride] : grid[bottom_wall - grid_stride];
     }
 
-    grid[container.IDX(0, 0)] = 
-        0.5f * (grid[container.IDX(1, 0)] + grid[container.IDX(0, 1)]);
-        
-    grid[container.IDX(0, container.height + 1)] = 
-        0.5f * (grid[container.IDX(1, container.height + 1)] + grid[container.IDX(0, container.height)]);
-        
-    grid[container.IDX(container.width + 1, 0)] = 
-        0.5f * (grid[container.IDX(container.width, 0)] + grid[container.IDX(container.width + 1, 1)]);
-        
-    grid[container.IDX(container.width + 1, container.height + 1)] = 
-        0.5f * (grid[container.IDX(container.width, container.height + 1)] + grid[container.IDX(container.width + 1, container.height)]);
+    // Corners (Hardcoded absolute indices)
+    int bottom_left_corner = (container.height + 1) * grid_stride;
+    grid[0] = 0.5f * (grid[1] + grid[grid_stride]);
+    grid[bottom_left_corner] = 0.5f * (grid[bottom_left_corner + 1] + grid[bottom_left_corner - grid_stride]);
+    grid[container.width + 1] = 0.5f * (grid[container.width] + grid[container.width + 1 + grid_stride]);
+    grid[bottom_left_corner + container.width + 1] = 0.5f * (grid[bottom_left_corner + container.width] + grid[bottom_left_corner + container.width + 1 - grid_stride]);
 }
 
 void lin_solve(int boundary_t, std::vector<float>& x, const std::vector<float>& x0, float a, float c, fluid_container& container)
 {
+    int grid_stride = container.width + 2;
+    
+    float inv_c = 1.0f / c;
+
     for (int k = 0; k < LIN_SOL_MAX; k++)
     {
+        int center = grid_stride + 1;
+
         for (int i = 1; i <= container.height; i++)
         {
             for (int j = 1; j <= container.width; j++)
             {
-                x[container.IDX(j, i)] = 
-                (x0[container.IDX(j, i)] + 
+                x[center] = 
+                (x0[center] + 
                     a * (
-                        x[container.IDX(j - 1, i)] + 
-                        x[container.IDX(j + 1, i)] + 
-                        x[container.IDX(j, i - 1)] + 
-                        x[container.IDX(j, i + 1)]
+                        x[center - 1] + 
+                        x[center + 1] + 
+                        x[center - grid_stride] + 
+                        x[center + grid_stride]
                     )
-                ) / c;
+                ) * inv_c;
+
+                center++;
             }
+
+            // jump over the right wall and next left wall.
+            center += 2;
         }
         set_bnd(boundary_t, x, container);
     }
@@ -108,39 +123,41 @@ void advect(int boundary_t, vector<float>& curr_state, const vector<float>& prev
 void project(vector<float>& u, vector<float>& v, vector<float>& pressure, vector<float>& div, fluid_container& container)
 {
     float h = 1.0f / max(container.height, container.width);
-    
+    int grid_stride = container.width + 2;
+
+    float half_h = -0.5f * h;
+    int center = grid_stride + 1;
     for (int i = 1; i <= container.height; i++)
     {
         for (int j = 1; j <= container.width; j++)
         {
-            div[container.IDX(j, i)] = -0.5 * h * (u[container.IDX(j + 1, i)] - u[container.IDX(j - 1, i)] + 
-                                                   v[container.IDX(j, i + 1)] - v[container.IDX(j, i - 1)]);
-            pressure[container.IDX(j, i)] = 0.0f;
+            div[center] = half_h * (u[center + 1] - u[center - 1] + 
+                                    v[center + grid_stride] - v[center - grid_stride]);
+            pressure[center] = 0.0f;
+            center++;
         }
+        // Jump walls
+        center += 2;
     }
     set_bnd(0, div, container);
     set_bnd(0, pressure, container);
 
-    for (int k = 0; k < LIN_SOL_MAX; k++)
-    {
-        for (int i = 1; i <= container.height; i++)
-        {
-            for (int j = 1; j <= container.width; j++)
-            {
-                pressure[container.IDX(j, i)] = (div[container.IDX(j, i)] + pressure[container.IDX(j - 1, i)] + pressure[container.IDX(j + 1, i)] + pressure[container.IDX(j, i - 1)] + pressure[container.IDX(j, i + 1)]) / 4;
-            }
-        }
-        set_bnd(0, pressure, container);
-    }
+    lin_solve(0, pressure, div, 1.0f, 4.0f, container);
 
     float scale = 0.5f / h;
+    // Reset pointer to top-left
+    center = grid_stride + 1;
     for (int i = 1; i <= container.height; i++)
     {
         for (int j = 1; j <= container.width; j++)
         {
-            u[container.IDX(j, i)] -= scale * (pressure[container.IDX(j + 1, i)] - pressure[container.IDX(j - 1, i)]);
-            v[container.IDX(j, i)] -= scale * (pressure[container.IDX(j, i + 1)] - pressure[container.IDX(j, i - 1)]);
+            u[center] -= scale * (pressure[center + 1] - pressure[center - 1]);
+            v[center] -= scale * (pressure[center + grid_stride] - pressure[center - grid_stride]);
+            center++;
         }
+
+        // Jump walls
+        center += 2;
     }
     set_bnd(1, u, container);
     set_bnd(2, v, container);

@@ -2,6 +2,8 @@
 
 using namespace std;
 
+static int cached_cells = -1;
+
 inline int get_radius(float prct, int side)
 {
     float radius_pct = prct / 100.0f;
@@ -102,38 +104,62 @@ void add_sources(const sim_config& config, fluid_container& container, const Inp
 
         float push_dir = config.spawn_y < 0.5f ? push : -push;
 
-        int cells_in_brush = 1;
-        if (config.dist_fluid && radius > 0)
+        if (cached_cells == -1)
         {
-            cells_in_brush = 0;
-            for (int i = -radius; i <= radius; i++) {
-                for (int j = -radius; j <= radius; j++) {
-                    if (in_brush_bound(i, j, radius)) {
-                        cells_in_brush++;
+            cached_cells = 0;
+            int r_sq = radius * radius;
+
+            for (int i = -radius; i <= radius; i++) 
+            {
+                int i_sq = i * i;
+                for (int j = -radius; j <= radius; j++) 
+                {
+                    if (i_sq + (j * j) <= r_sq) 
+                    {
+                        cached_cells++;
                     }
                 }
             }
-            amount = amount / cells_in_brush;
-            push_dir = push_dir / cells_in_brush;
         }
+
+        if (config.dist_fluid && cached_cells > 0)
+        {
+            amount /= cached_cells;
+            push_dir /= cached_cells;
+        }
+
+        int max_x = container.width - 1;
+        int max_y = container.height - 1;
+
+        int grid_stride = container.width + 2;
+        int spawn_idx = (fluid_y * grid_stride) + fluid_x;
+        int r_sq = radius * radius;
+
 
         for (int i = -radius; i <= radius; i++) 
         {
+            int target_y = fluid_y + i;
+
+            // Skip this entire row if it's out of vertical bounds
+            if (target_y <= 0 || target_y >= max_y) continue;
+
+            int i_sq = i * i;
+            int row_offset = i * grid_stride;
+
             for (int j = -radius; j <= radius; j++) 
             {
-                // Check if the current offset is inside the circle
-                if (in_brush_bound(i, j, radius)) 
-                {
-                    int target_x = fluid_x + j;
-                    int target_y = fluid_y + i;
+                int target_x = fluid_x + j;
 
-                    // Keep the brush strictly inside the grid boundaries
-                    if (target_x > 0 && target_x < container.width - 1 &&
-                        target_y > 0 && target_y < container.height - 1) 
-                    {
-                        emission_arr[container.IDX(target_x, target_y)] += amount;
-                        container.vel_y_prev[container.IDX(target_x, target_y)] += push_dir;
-                    }
+                // Skip this cell if it's out of horizontal bounds
+                if (target_x <= 0 || target_x >= max_x) continue;
+
+                // Check if the current offset is inside the circle
+                if (i_sq + (j * j) <= r_sq) 
+                {
+                    int final_idx = spawn_idx + row_offset + j;
+                    
+                    emission_arr[final_idx] += amount;
+                    container.vel_y_prev[final_idx] += push_dir;
                 }
             }
         }
