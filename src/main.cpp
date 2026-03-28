@@ -26,6 +26,7 @@ int main()
     enableANSI();
     
     signal(SIGINT, shutdown);
+    signal(SIGTERM, shutdown);
 
     ios_base::sync_with_stdio(false);
 
