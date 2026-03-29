@@ -26,6 +26,7 @@ int main()
     enableANSI();
     
     signal(SIGINT, shutdown);
+    signal(SIGTERM, shutdown);
 
     ios_base::sync_with_stdio(false);
 
@@ -77,12 +78,15 @@ int main()
         update_input(input_state);
         apply_user_input(config, container, input_state, emission_arr);
 
+        if (input_state.quit) 
+            break;
+
         vel_step(config.visc, container);
         dens_step(0, config.diff, emission_arr, container);
 
         set_print_string(print_string, container.dens, container.height, container.width);
 
-        // using flush to ensure that everything is rendered immediatly.
+        // using flush to ensure that everything is rendered immediately.
         cout << "\033[H" << print_string;
         cout << "\033[H\033[92m" << get_fps_overlay(real_frame_time) << "\033[0m" << flush;
 
@@ -112,17 +116,27 @@ void setup()
 
     cout << "Controls:\n";
 
-    #ifdef _WIN32
-        cout << " - Hold [SPACE] to pour smoke.\n";
-        cout << " - Hold [W,A,S,D] to apply wind.\n";
-    #else
-        cout << " - Press [SPACE] to toggle pouring smoke on/off.\n";
-        cout << " - Press [W,A,S,D] to toggle wind direction on/off.\n";
-    #endif
+#ifdef _WIN32
+    cout << " - Hold [SPACE] to pour smoke.\n";
+    cout << " - Hold [W,A,S,D] to apply wind.\n";
+#else
+    cout << " - Press [SPACE] to toggle pouring smoke on/off.\n";
+    cout << " - Press [W,A,S,D] to toggle wind direction on/off.\n";
+#endif
 
         cout << " - Press [Q] to quit the simulation.\n\n";
 
         cout << "NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n";
+    
+#ifdef _WIN32
+    cout << "\033[93mPlease use [Q] or Ctrl+C to exit safely.\033[0m\n";
+    cout << "\033[93mForce-closing via 'taskkill /F' may leave older terminals in a broken state.\033[0m\n";
+    cout << "\033[93mIf your terminal breaks (stuck screen or missing cursor), close the window and open a new one.\033[0m\n\n";
+#else
+    cout << "\033[93mPlease use [Q], Ctrl+C, or a polite 'kill' command to exit safely.\033[0m\n";
+    cout << "\033[93mForce-closing the window or using 'kill -9' (SIGKILL) will break the terminal.\033[0m\n";
+    cout << "\033[93mIf your terminal breaks (invisible text or missing cursor), type 'reset' and press ENTER.\033[0m\n\n";
+#endif
 
         cout << "For the best experience, please maximize your terminal or press F11 now.\n";
         cout << "Press ENTER to start the simulation...";
@@ -148,7 +162,6 @@ inline char map_to_char(float density)
 
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
 {
-    // TODO: Improve preformance
     int grid_stride = TERMINAL_WIDTH + 2;
     int string_index = 0;
 
