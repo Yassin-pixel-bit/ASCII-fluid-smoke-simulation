@@ -78,6 +78,9 @@ int main()
         update_input(input_state);
         apply_user_input(config, container, input_state, emission_arr);
 
+        if (input_state.quit) 
+            break;
+
         vel_step(config.visc, container);
         dens_step(0, config.diff, emission_arr, container);
 
