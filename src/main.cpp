@@ -4,6 +4,10 @@
 #include <thread>
 #include <algorithm>
 #include <csignal>
+#include <fmt/core.h>
+#include <fmt/color.h>
+#include <fmt/format.h>
+#include <iterator>
 #include "engine_timing.h"
 #include "terminal.h"
 #include "fluid_math.h"
@@ -87,8 +91,10 @@ int main()
         set_print_string(print_string, container.dens, container.height, container.width);
 
         // using flush to ensure that everything is rendered immediately.
-        cout << "\033[H" << print_string;
-        cout << "\033[H\033[92m" << get_fps_overlay(real_frame_time) << "\033[0m" << flush;
+        fmt::print("\033[H{}", print_string);
+        fmt::print("\033[H\033[92m{}\033[0m", get_fps_overlay(real_frame_time));
+
+        std::fflush(stdout);
 
         auto target_time = frame_start + FRAME_DURATION;
         auto now = chrono::steady_clock::now();

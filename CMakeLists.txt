@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(ASCII_fluid)
 
+add_compile_definitions(FMT_HEADER_ONLY)
+
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 add_executable(main ${SOURCES})
