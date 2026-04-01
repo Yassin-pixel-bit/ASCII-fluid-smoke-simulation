@@ -14,6 +14,7 @@
 #include "input_state.h"
 #include "interactive.h"
 #include "settings.h"
+#include "themes.h"
 
 using namespace std;
 
@@ -49,13 +50,22 @@ int main()
     setup();
     InputState input_state;
 
+    gradient_theme cyberpunk_theme = {
+        {0.0f, {60, 0, 120}},          // magenta-blue
+        {0.15f, {150, 0, 255}},      // purple
+        {0.50f, {255, 0, 128}},     // pink
+        {1.0f, {0, 255, 255}}     // Cyan
+    };
+
+    init_theme(cyberpunk_theme, render_str_len);
+
     const float TARGET_FPS = config.target_fps;
     const chrono::microseconds FRAME_DURATION((int)(1000000.0f / TARGET_FPS));
 
     fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
     string print_string;
-    print_string.resize(container.height * ((container.width * 2)+ 1) - 1, ' ');
+    print_string.reserve(container.height * container.width * 20);
 
     vector<float> emission_arr;
     emission_arr.resize((container.height + 2) * (container.width + 2));
@@ -169,20 +179,45 @@ inline char map_to_char(float density)
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
 {
     int grid_stride = TERMINAL_WIDTH + 2;
-    int string_index = 0;
-
     // Skip the top boundary wall, and the first left boundary wall
     int fluid_index = grid_stride + 1;
+
+    print_string.clear();
+
+    RGB current_terminal_color = {0, 0, 0}; 
+    bool is_colored = false;
 
     for (int i = 0; i < TERMINAL_LEN; i++)
     {
         for (int j = 0; j < TERMINAL_WIDTH; j++)
         {
-            char c = map_to_char(grid[fluid_index]);
+            float density = grid[fluid_index];
             fluid_index++;
 
-            print_string[string_index++] = c;
-            print_string[string_index++] = c;
+            int max_index = render_str_len - 1;
+            int char_index = clamp(static_cast<int>(density * max_index), 0, max_index);
+            
+            char c = render_str[char_index];
+
+            if (c != render_str[0])
+            {
+                RGB target_color = get_theme_color(char_index);
+
+                if (!is_colored || target_color != current_terminal_color)
+                {
+                    fmt::format_to(std::back_inserter(print_string), "\033[38;2;{};{};{}m", 
+                                   target_color.r, target_color.g, target_color.b);
+                    current_terminal_color = target_color;
+                    is_colored = true;
+                }
+            } else if (is_colored) {
+                // Reset to default terminal color for empty space to save bytes
+                print_string.append("\033[0m");
+                is_colored = false;
+            }
+
+            print_string.push_back(c);
+            print_string.push_back(c);
         }
 
         // Jump over the right wall (+1) and the next row's left wall (+1)
@@ -190,8 +225,11 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
 
         // as long as we are not at the last row add a newline char
         if ((i + 1) != TERMINAL_LEN)
-            print_string[string_index++] = '\n';
+            print_string.push_back('\n');
     }
+
+    // Safety reset
+    if (is_colored) print_string.append("\033[0m");
 }
 
 string get_fps_overlay(float dt)
