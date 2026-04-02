@@ -1,6 +1,7 @@
 #include "themes.h"
 
 std::vector<RGB> palette;
+std::vector<std::string> ansi_palette;
 
 inline uint8_t lerp(uint8_t start, uint8_t end, float prct)
 {
@@ -39,16 +40,26 @@ RGB evaluate_gradient(const gradient_theme& theme, float density)
 void init_theme(const gradient_theme& theme, int steps)
 {
     palette.clear();
+    ansi_palette.clear();
     palette.reserve(steps);
+    ansi_palette.reserve(steps);
 
     for (int i = 0; i < steps; i++) 
     {
         float density = (float)i / (float)(steps - 1);
-        palette.push_back(evaluate_gradient(theme, density));
+        RGB color = evaluate_gradient(theme, density);
+
+        palette.push_back(color);
+        ansi_palette.push_back(fmt::format("\033[38;2;{};{};{}m", color.r, color.g, color.b));
     }
 }
 
 RGB get_theme_color(int index)
 {
     return palette[index];
+}
+
+const std::string& get_theme_ansi(int index)
+{
+    return ansi_palette[index];
 }
