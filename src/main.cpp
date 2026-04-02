@@ -18,8 +18,8 @@
 
 using namespace std;
 
-void setup();
-void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH);
+void setup(bool use_colors);
+void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH, bool use_colors);
 string get_fps_overlay(float dt);
 void shutdown(int signum);
 
@@ -47,7 +47,7 @@ int main()
         cout << "\n\n";
     }
 
-    setup();
+    setup(config.use_colors);
     InputState input_state;
 
     gradient_theme cyberpunk_theme = {
@@ -65,7 +65,10 @@ int main()
     fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
     string print_string;
-    print_string.reserve(container.height * container.width * 20);
+    if (config.use_colors)
+        print_string.reserve(container.height * container.width * 20);
+    else
+        print_string.reserve(container.height * ((container.width * 2)+ 1) - 1); // the old size
 
     vector<float> emission_arr;
     emission_arr.resize((container.height + 2) * (container.width + 2));
@@ -98,7 +101,7 @@ int main()
         vel_step(config.visc, container);
         dens_step(0, config.diff, emission_arr, container);
 
-        set_print_string(print_string, container.dens, container.height, container.width);
+        set_print_string(print_string, container.dens, container.height, container.width, config.use_colors);
 
         fmt::print("\033[H{}", print_string);
         fmt::print("\033[H\033[92m{}\033[0m", get_fps_overlay(real_frame_time));
@@ -122,7 +125,7 @@ int main()
 
 }
 
-void setup()
+void setup(bool use_colors)
 {
     cout << "=== ASCII Smoke Simulation ===\n\n";
 
@@ -141,6 +144,12 @@ void setup()
         cout << " - Press [Q] to quit the simulation.\n\n";
 
         cout << "NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n";
+
+        if (!use_colors)
+        {
+            cout << "\033[96mNOTE: 24-bit ANSI colors are currently disabled.\n";
+            cout << "You can enable them by setting 'use_colors = 1' in 'settings.ini'.\033[0m\n\n";
+        }
     
 #ifdef _WIN32
     cout << "\033[93mPlease use [Q] or Ctrl+C to exit safely.\033[0m\n";
@@ -174,7 +183,7 @@ inline char map_to_char(float density)
     return render_str[index];
 }
 
-void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
+void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH, bool use_colors)
 {
     int grid_stride = TERMINAL_WIDTH + 2;
     // Skip the top boundary wall, and the first left boundary wall
@@ -195,24 +204,28 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
             if (cell_run_length == 0) return;
 
             char run_char = render_str[current_run_index];
-            RGB run_color = get_theme_color(current_run_index);
 
-            // Handle Color Injection
-            if (run_char != render_str[0]) 
+            if (use_colors)
             {
-                if (!is_colored || run_color != current_terminal_color) 
+                RGB run_color = get_theme_color(current_run_index);
+
+                // Handle Color Injection
+                if (run_char != render_str[0]) 
                 {
-                    print_string.append(get_theme_ansi(current_run_index));
+                    if (!is_colored || run_color != current_terminal_color) 
+                    {
+                        print_string.append(get_theme_ansi(current_run_index));
 
-                    current_terminal_color = run_color;
-                    is_colored = true;
+                        current_terminal_color = run_color;
+                        is_colored = true;
+                    }
+                } 
+                else if (is_colored) 
+                {
+                    // Drop the color state for empty space to save bytes
+                    print_string.append("\033[0m");
+                    is_colored = false;
                 }
-            } 
-            else if (is_colored) 
-            {
-                // Drop the color state for empty space to save bytes
-                print_string.append("\033[0m");
-                is_colored = false;
             }
 
             int total_chars = cell_run_length * 2;
