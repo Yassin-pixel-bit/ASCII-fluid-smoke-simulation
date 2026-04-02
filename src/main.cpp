@@ -100,10 +100,8 @@ int main()
 
         set_print_string(print_string, container.dens, container.height, container.width);
 
-        // using flush to ensure that everything is rendered immediately.
         fmt::print("\033[H{}", print_string);
         fmt::print("\033[H\033[92m{}\033[0m", get_fps_overlay(real_frame_time));
-
         std::fflush(stdout);
 
         auto target_time = frame_start + FRAME_DURATION;
@@ -189,36 +187,68 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
 
     for (int i = 0; i < TERMINAL_LEN; i++)
     {
+        int current_run_index = -1; 
+        int cell_run_length = 0;
+
+        // lambda function
+        auto flush_run = [&]() {
+            if (cell_run_length == 0) return;
+
+            char run_char = render_str[current_run_index];
+            RGB run_color = get_theme_color(current_run_index);
+
+            // Handle Color Injection
+            if (run_char != render_str[0]) 
+            {
+                if (!is_colored || run_color != current_terminal_color) 
+                {
+                    print_string.append(get_theme_ansi(current_run_index));
+
+                    current_terminal_color = run_color;
+                    is_colored = true;
+                }
+            } 
+            else if (is_colored) 
+            {
+                // Drop the color state for empty space to save bytes
+                print_string.append("\033[0m");
+                is_colored = false;
+            }
+
+            int total_chars = cell_run_length * 2;
+            if (total_chars <= 4) 
+            {
+                // If it's 4 characters or fewer, compression costs more, Just append.
+                print_string.append(total_chars, run_char);
+            } 
+            else 
+            {
+                print_string.push_back(run_char);
+                fmt::format_to(std::back_inserter(print_string), "\033[{}b", total_chars - 1);
+            }
+        };
+
         for (int j = 0; j < TERMINAL_WIDTH; j++)
         {
             float density = grid[fluid_index];
             fluid_index++;
 
             int max_index = render_str_len - 1;
-            int char_index = clamp(static_cast<int>(density * max_index), 0, max_index);
-            
-            char c = render_str[char_index];
+            int char_index = clamp((int)(density * max_index), 0, max_index);
 
-            if (c != render_str[0])
+            if (char_index == current_run_index)
             {
-                RGB target_color = get_theme_color(char_index);
-
-                if (!is_colored || target_color != current_terminal_color)
-                {
-                    fmt::format_to(std::back_inserter(print_string), "\033[38;2;{};{};{}m", 
-                                   target_color.r, target_color.g, target_color.b);
-                    current_terminal_color = target_color;
-                    is_colored = true;
-                }
-            } else if (is_colored) {
-                // Reset to default terminal color for empty space to save bytes
-                print_string.append("\033[0m");
-                is_colored = false;
+                cell_run_length++;
             }
-
-            print_string.push_back(c);
-            print_string.push_back(c);
+            else
+            {
+                flush_run();
+                current_run_index = char_index;
+                cell_run_length = 1;
+            }
         }
+
+        flush_run();
 
         // Jump over the right wall (+1) and the next row's left wall (+1)
         fluid_index += 2;
@@ -228,7 +258,6 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
             print_string.push_back('\n');
     }
 
-    // Safety reset
     if (is_colored) print_string.append("\033[0m");
 }
 
