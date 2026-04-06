@@ -41,15 +41,6 @@ int main()
     setup(config.use_colors);
     InputState input_state;
 
-    gradient_theme cyberpunk_theme = {
-        {0.0f, {60, 0, 120}},          // magenta-blue
-        {0.15f, {150, 0, 255}},      // purple
-        {0.50f, {255, 0, 128}},     // pink
-        {1.0f, {0, 255, 255}}     // Cyan
-    };
-
-    init_theme(cyberpunk_theme, render_str_len);
-
     const float TARGET_FPS = config.target_fps;
     const chrono::microseconds FRAME_DURATION((int)(1000000.0f / TARGET_FPS));
 
@@ -116,6 +107,22 @@ int main()
 
 }
 
+inline void set_theme()
+{
+    print_theme_menu();
+    
+    int choice;
+    while (!(cin >> choice) || choice > get_themes_max() || choice < 1)
+    {
+        cout << "Please, select a valid option.\n";
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Select a valid option: ";
+    }
+
+    init_selected_theme(choice - 1, render_str_len);
+}
+
 void setup(bool use_colors)
 {
     cout << "=== ASCII Smoke Simulation ===\n\n";
@@ -152,9 +159,20 @@ void setup(bool use_colors)
     cout << "\033[93mIf your terminal breaks (invisible text or missing cursor), type 'reset' and press ENTER.\033[0m\n\n";
 #endif
 
-        cout << "For the best experience, please maximize your terminal or press F11 now.\n";
+    cout << "For the best experience, please maximize your terminal or press F11 now.\n";
+
+    if (use_colors)
+        cout << "Press ENTER to choose a color theme...";
+    else
         cout << "Press ENTER to start the simulation...";
-        cin.get();
+
+    cin.get();
+
+    if (use_colors)
+    {
+        cout << "\033[2J\033[H";
+        set_theme();
+    }
 
     // enters the alternate screen buffer and hides the cursor
     cout << "\033[?1049h\033[?25l" << flush;

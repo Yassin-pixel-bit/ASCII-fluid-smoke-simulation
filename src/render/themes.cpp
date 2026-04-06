@@ -1,7 +1,11 @@
+#include <iostream>
 #include "themes.h"
+#include "theme_presets.h"
 
 std::vector<RGB> palette;
 std::vector<std::string> ansi_palette;
+
+using std::cout;
 
 inline uint8_t lerp(uint8_t start, uint8_t end, float prct)
 {
@@ -52,6 +56,28 @@ void init_theme(const gradient_theme& theme, int steps)
         palette.push_back(color);
         ansi_palette.push_back(fmt::format("\033[38;2;{};{};{}m", color.r, color.g, color.b));
     }
+}
+
+int get_themes_max()
+{
+    return theme_registry.size();
+}
+
+void print_theme_menu()
+{
+    cout << "\nSelect a color Theme\n";
+
+    for (int i = 0; i < get_themes_max(); i++)
+    {
+        cout << i + 1 << ") " << theme_registry[i].name << "\n";
+    }
+    
+    cout << "\nEnter a number (1 -" << get_themes_max() << " ): ";    
+}
+
+void init_selected_theme(int choice, int steps)
+{
+    init_theme(theme_registry[choice].data, steps);
 }
 
 RGB get_theme_color(int index)

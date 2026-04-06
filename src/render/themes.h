@@ -24,6 +24,8 @@ struct color_stop {
 
 using gradient_theme = std::vector<color_stop>;
 
-void init_theme(const gradient_theme& theme, int steps);
+void init_selected_theme(int choice, int steps);
+void print_theme_menu();
 RGB get_theme_color(int index);
 const std::string& get_theme_ansi(int index);
+int get_themes_max();
