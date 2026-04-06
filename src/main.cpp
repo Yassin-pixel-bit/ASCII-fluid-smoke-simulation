@@ -1,13 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
-#include <thread>
-#include <algorithm>
 #include <csignal>
 #include <fmt/core.h>
-#include <fmt/color.h>
-#include <fmt/format.h>
-#include <iterator>
 #include "engine_timing.h"
 #include "terminal.h"
 #include "fluid_math.h"
@@ -15,16 +10,12 @@
 #include "interactive.h"
 #include "settings.h"
 #include "themes.h"
+#include "renderer.h"
 
 using namespace std;
 
 void setup(bool use_colors);
-void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH, bool use_colors);
-string get_fps_overlay(float dt);
 void shutdown(int signum);
-
-constexpr string_view render_str = R"( .`'-_,:~=;!*+<>\/|?#@)";
-constexpr int render_str_len = render_str.size();
 
 int main()
 {
@@ -169,131 +160,6 @@ void setup(bool use_colors)
     cout << "\033[?1049h\033[?25l" << flush;
 
     initTerminalSize();
-}
-
-inline char map_to_char(float density)
-{
-    int max_index = render_str_len - 1;
-
-    int index = (int)(density * max_index);
-    
-    // Clamp using the dynamic max_index
-    index = clamp(index, 0, max_index);
-    
-    return render_str[index];
-}
-
-void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH, bool use_colors)
-{
-    int grid_stride = TERMINAL_WIDTH + 2;
-    // Skip the top boundary wall, and the first left boundary wall
-    int fluid_index = grid_stride + 1;
-
-    print_string.clear();
-
-    RGB current_terminal_color = {0, 0, 0}; 
-    bool is_colored = false;
-
-    for (int i = 0; i < TERMINAL_LEN; i++)
-    {
-        int current_run_index = -1; 
-        int cell_run_length = 0;
-
-        // lambda function
-        auto flush_run = [&]() {
-            if (cell_run_length == 0) return;
-
-            char run_char = render_str[current_run_index];
-
-            if (use_colors)
-            {
-                RGB run_color = get_theme_color(current_run_index);
-
-                // Handle Color Injection
-                if (run_char != render_str[0]) 
-                {
-                    if (!is_colored || run_color != current_terminal_color) 
-                    {
-                        print_string.append(get_theme_ansi(current_run_index));
-
-                        current_terminal_color = run_color;
-                        is_colored = true;
-                    }
-                } 
-                else if (is_colored) 
-                {
-                    // Drop the color state for empty space to save bytes
-                    print_string.append("\033[0m");
-                    is_colored = false;
-                }
-            }
-
-            int total_chars = cell_run_length * 2;
-            if (total_chars <= 4) 
-            {
-                // If it's 4 characters or fewer, compression costs more, Just append.
-                print_string.append(total_chars, run_char);
-            } 
-            else 
-            {
-                print_string.push_back(run_char);
-                fmt::format_to(std::back_inserter(print_string), "\033[{}b", total_chars - 1);
-            }
-        };
-
-        for (int j = 0; j < TERMINAL_WIDTH; j++)
-        {
-            float density = grid[fluid_index];
-            fluid_index++;
-
-            int max_index = render_str_len - 1;
-            int char_index = clamp((int)(density * max_index), 0, max_index);
-
-            if (char_index == current_run_index)
-            {
-                cell_run_length++;
-            }
-            else
-            {
-                flush_run();
-                current_run_index = char_index;
-                cell_run_length = 1;
-            }
-        }
-
-        flush_run();
-
-        // Jump over the right wall (+1) and the next row's left wall (+1)
-        fluid_index += 2;
-
-        // as long as we are not at the last row add a newline char
-        if ((i + 1) != TERMINAL_LEN)
-            print_string.push_back('\n');
-    }
-
-    if (is_colored) print_string.append("\033[0m");
-}
-
-string get_fps_overlay(float dt)
-{
-    static float fps_timer = 0.0f;
-    static int frame_count = 0;
-    static string fps_display = "FPS: --";
-
-    fps_timer += dt;
-    frame_count++;
-
-    // Update the string only once per second so it is readable
-    if (fps_timer >= 1.0f)
-    {
-        fps_display = "FPS: " + to_string(frame_count);
-        
-        // Reset counters (subtracting 1.0f instead of setting to 0 keeps the remainder for precise timing)
-        fps_timer -= 1.0f;
-        frame_count = 0;
-    }
-
-    return fps_display;
 }
 
 void shutdown(int signum = 0)
