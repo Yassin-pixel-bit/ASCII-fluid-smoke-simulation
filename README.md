@@ -7,14 +7,13 @@
 
 Written from scratch in C++, this engine is a direct implementation of Jos Stam's highly influential "Real-Time Fluid Dynamics for Games - [the paper](https://graphics.cs.cmu.edu/nsp/course/15-464/Fall09/papers/StamFluidforGames.pdf)" stable solver, featuring cross-platform asynchronous input and custom configuration parsing. It uses an optimized ANSI rendering pipeline for coloring the fluid/smoke.
 
-
-![ASCII Fluid Simulation Demo](https://raw.githubusercontent.com/Yassin-pixel-bit/ascii-fluid-smoke-simulation/assets/Fluid_sim_example.gif)
+![ASCII Fluid Simulation Demo](https://raw.githubusercontent.com/Yassin-pixel-bit/ascii-fluid-smoke-simulation/assets/vaporwave.gif)
 
 
 ## Features
 * **Custom Physics Solver:** Implements a stable, grid-based Eulerian fluid solver featuring density diffusion, velocity advection, and mass-conserving projection.
 
-* **Dynamic Rendering Pipeline:** Implements a custom rendering pipleline that maps densities to chars and it's dedicated color that is decided based on a gradient/theme.
+* **Dynamic Rendering Pipeline:** Implements a custom rendering pipeline that maps densities to chars and its dedicated color that is decided based on a gradient/theme.
 
 * **Pre-made themes:** Includes a built-in theme selection menu. Choose from 8 pre-made gradient themes on startup (e.g., *Cyberpunk, Uranium Core, Fire, Vaporwave*).
 
@@ -22,12 +21,20 @@ Written from scratch in C++, this engine is a direct implementation of Jos Stam'
 
 * **Data-Driven Configuration:** Integrates a custom `.ini` parsing system (`mINI`), allowing users to tweak viscosity, diffusion, rendering fps, and fluid limits without recompiling.
 
+## Themes Showcase
+
+**Arcane forest:**
+![Arcane Forest](https://raw.githubusercontent.com/Yassin-pixel-bit/ascii-fluid-smoke-simulation/assets/arcane_forest.gif)
+
+**Cyberpunk:**
+![Cyberpunk](https://raw.githubusercontent.com/Yassin-pixel-bit/ascii-fluid-smoke-simulation/assets/cyperpunk.gif)
+
+**Pastel sunrise:**
+![Pastel sunrise](https://raw.githubusercontent.com/Yassin-pixel-bit/ascii-fluid-smoke-simulation/assets/pastel_sunrise.gif)
 
 ## Building the Project
 
-
 This project uses CMake for cross-platform compilation.
-
 
 **Prerequisites:**
 * A C++ compiler supporting C++17 or higher (Built and tested with C++23)
