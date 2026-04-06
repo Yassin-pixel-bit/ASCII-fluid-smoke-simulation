@@ -1,25 +1,21 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
-#include <thread>
-#include <algorithm>
 #include <csignal>
+#include <fmt/core.h>
 #include "engine_timing.h"
 #include "terminal.h"
 #include "fluid_math.h"
 #include "input_state.h"
 #include "interactive.h"
 #include "settings.h"
+#include "themes.h"
+#include "renderer.h"
 
 using namespace std;
 
-void setup();
-void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH);
-string get_fps_overlay(float dt);
+void setup(bool use_colors);
 void shutdown(int signum);
-
-constexpr string_view render_str = R"( .`'-_,:~=;!*+<>\/|?#@)";
-constexpr int render_str_len = render_str.size();
 
 int main()
 {
@@ -42,7 +38,7 @@ int main()
         cout << "\n\n";
     }
 
-    setup();
+    setup(config.use_colors);
     InputState input_state;
 
     const float TARGET_FPS = config.target_fps;
@@ -51,7 +47,10 @@ int main()
     fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
     string print_string;
-    print_string.resize(container.height * ((container.width * 2)+ 1) - 1, ' ');
+    if (config.use_colors)
+        print_string.reserve(container.height * container.width * 20);
+    else
+        print_string.reserve(container.height * ((container.width * 2)+ 1) - 1); // the old size
 
     vector<float> emission_arr;
     emission_arr.resize((container.height + 2) * (container.width + 2));
@@ -84,11 +83,11 @@ int main()
         vel_step(config.visc, container);
         dens_step(0, config.diff, emission_arr, container);
 
-        set_print_string(print_string, container.dens, container.height, container.width);
+        set_print_string(print_string, container.dens, container.height, container.width, config.use_colors);
 
-        // using flush to ensure that everything is rendered immediately.
-        cout << "\033[H" << print_string;
-        cout << "\033[H\033[92m" << get_fps_overlay(real_frame_time) << "\033[0m" << flush;
+        fmt::print("\033[H{}", print_string);
+        fmt::print("\033[H\033[92m{}\033[0m", get_fps_overlay(real_frame_time));
+        std::fflush(stdout);
 
         auto target_time = frame_start + FRAME_DURATION;
         auto now = chrono::steady_clock::now();
@@ -108,7 +107,23 @@ int main()
 
 }
 
-void setup()
+inline void set_theme()
+{
+    print_theme_menu();
+    
+    int choice;
+    while (!(cin >> choice) || choice > get_themes_max() || choice < 1)
+    {
+        cout << "Please, select a valid option.\n";
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Select a valid option: ";
+    }
+
+    init_selected_theme(choice - 1, render_str_len);
+}
+
+void setup(bool use_colors)
 {
     cout << "=== ASCII Smoke Simulation ===\n\n";
 
@@ -127,6 +142,12 @@ void setup()
         cout << " - Press [Q] to quit the simulation.\n\n";
 
         cout << "NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n";
+
+        if (!use_colors)
+        {
+            cout << "\033[96mNOTE: 24-bit ANSI colors are currently disabled.\n";
+            cout << "You can enable them by setting 'use_colors = 1' in 'settings.ini'.\033[0m\n\n";
+        }
     
 #ifdef _WIN32
     cout << "\033[93mPlease use [Q] or Ctrl+C to exit safely.\033[0m\n";
@@ -138,76 +159,25 @@ void setup()
     cout << "\033[93mIf your terminal breaks (invisible text or missing cursor), type 'reset' and press ENTER.\033[0m\n\n";
 #endif
 
-        cout << "For the best experience, please maximize your terminal or press F11 now.\n";
+    cout << "For the best experience, please maximize your terminal or press F11 now.\n";
+
+    if (use_colors)
+        cout << "Press ENTER to choose a color theme...";
+    else
         cout << "Press ENTER to start the simulation...";
-        cin.get();
+
+    cin.get();
+
+    if (use_colors)
+    {
+        cout << "\033[2J\033[H";
+        set_theme();
+    }
 
     // enters the alternate screen buffer and hides the cursor
     cout << "\033[?1049h\033[?25l" << flush;
 
     initTerminalSize();
-}
-
-inline char map_to_char(float density)
-{
-    int max_index = render_str_len - 1;
-
-    int index = (int)(density * max_index);
-    
-    // Clamp using the dynamic max_index
-    index = clamp(index, 0, max_index);
-    
-    return render_str[index];
-}
-
-void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH)
-{
-    int grid_stride = TERMINAL_WIDTH + 2;
-    int string_index = 0;
-
-    // Skip the top boundary wall, and the first left boundary wall
-    int fluid_index = grid_stride + 1;
-
-    for (int i = 0; i < TERMINAL_LEN; i++)
-    {
-        for (int j = 0; j < TERMINAL_WIDTH; j++)
-        {
-            char c = map_to_char(grid[fluid_index]);
-            fluid_index++;
-
-            print_string[string_index++] = c;
-            print_string[string_index++] = c;
-        }
-
-        // Jump over the right wall (+1) and the next row's left wall (+1)
-        fluid_index += 2;
-
-        // as long as we are not at the last row add a newline char
-        if ((i + 1) != TERMINAL_LEN)
-            print_string[string_index++] = '\n';
-    }
-}
-
-string get_fps_overlay(float dt)
-{
-    static float fps_timer = 0.0f;
-    static int frame_count = 0;
-    static string fps_display = "FPS: --";
-
-    fps_timer += dt;
-    frame_count++;
-
-    // Update the string only once per second so it is readable
-    if (fps_timer >= 1.0f)
-    {
-        fps_display = "FPS: " + to_string(frame_count);
-        
-        // Reset counters (subtracting 1.0f instead of setting to 0 keeps the remainder for precise timing)
-        fps_timer -= 1.0f;
-        frame_count = 0;
-    }
-
-    return fps_display;
 }
 
 void shutdown(int signum = 0)

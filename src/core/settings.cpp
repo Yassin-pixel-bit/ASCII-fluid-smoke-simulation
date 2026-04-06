@@ -17,7 +17,9 @@ void init_ini()
 
     // Write the Engine section
     out_file << "[" << ENGINE_HEADER << "]\n";
-    out_file << "fps = 165\n\n";
+    out_file << "fps = 165\n";
+    out_file << "; 0 = Raw ASCII (fastest), 1 = 24-bit ANSI Colors\n";
+    out_file << "use_colors = 0\n\n";
 
     // Write the Simulation Values section
     out_file << "[" << SIM_HEADER << "]\n";
@@ -131,6 +133,7 @@ void read_ini(sim_config& config, vector<string>& warnings)
     if (check_section(ini, ENGINE_HEADER, warnings))
     {
         load_float(ini, ENGINE_HEADER, "fps", config.target_fps, warnings);
+        load_bool(ini, ENGINE_HEADER, "use_colors", config.use_colors, warnings);
     }
 
     // fluid simulation section
