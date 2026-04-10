@@ -90,7 +90,7 @@ int main()
                 restoreTerminal();
                 flushTerminalInput();
                 
-                input_state.reset = false; 
+                input_state.reset_state();
                 
                 break;
             }
@@ -199,8 +199,11 @@ void setup(bool use_colors)
         set_theme();
     }
 
-    // enters the alternate screen buffer and hides the cursor
-    cout << "\033[?1049h\033[?25l" << flush;
+    // Force the actual terminal window background to pure black - Thanks gemini :)
+    cout << "\033]11;#000000\007" << flush;
+
+    // enters the alternate screen buffer, hides the cursor forces black background
+    cout << "\033[?1049h\033[40m\033[2J\033[?25l" << flush;
 
     initTerminalSize();
 }
@@ -209,9 +212,10 @@ void shutdown(int signum = 0)
 {
     shutdown_engine_timing();
     restoreTerminal();
-    // \033[?1049l exits the alternate screen buffer
-    // \033[?25h  restores the cursor
-    // \033[0m    resets all colors
+
+    // Reset the terminal window background back to the user's default theme - Thanks gemini :)
+    cout << "\033]111\007" << flush;
+
     cout << "\033[?1049l\033[?25h\033[0m" << flush;
     
     if (signum != 0) {

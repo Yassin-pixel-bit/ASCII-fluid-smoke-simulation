@@ -9,4 +9,16 @@ struct InputState {
     bool quit = false;
     bool reset = false;
     bool clear = false;
+
+    inline void reset_state()
+    {
+        pouring_smoke = false;
+        wind_w = false;
+        wind_a = false;
+        wind_s = false;
+        wind_d = false;
+        quit = false;
+        reset = false;
+        clear = false;
+    }
 };
