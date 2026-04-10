@@ -34,6 +34,8 @@ void updateInput();
 */
 void restoreTerminal();
 
+void flushTerminalInput();
+
 bool isKeyJustPressed(char key);
 
 /**

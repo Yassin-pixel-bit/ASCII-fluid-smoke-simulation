@@ -7,4 +7,6 @@ struct InputState {
     bool wind_s = false;
     bool wind_d = false;
     bool quit = false;
+    bool reset = false;
+    bool clear = false;
 };

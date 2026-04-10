@@ -176,6 +176,7 @@ void update_input(InputState& input_state)
     updateActionState(input_state.wind_s, 's');
     updateActionState(input_state.wind_a, 'a');
     updateActionState(input_state.wind_d, 'd');
+    updateActionState(input_state.reset, 'r');
 }
 
 void apply_user_input(const sim_config& config, fluid_container& container, InputState& input_state, vector<float>& emission_arr)

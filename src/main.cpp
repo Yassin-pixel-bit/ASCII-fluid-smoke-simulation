@@ -38,73 +38,96 @@ int main()
         cout << "\n\n";
     }
 
-    setup(config.use_colors);
     InputState input_state;
 
     const float TARGET_FPS = config.target_fps;
     const chrono::microseconds FRAME_DURATION((int)(1000000.0f / TARGET_FPS));
 
-    fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
-
     string print_string;
-    if (config.use_colors)
-        print_string.reserve(container.height * container.width * 20);
-    else
-        print_string.reserve(container.height * ((container.width * 2)+ 1) - 1); // the old size
 
-    vector<float> emission_arr;
-    emission_arr.resize((container.height + 2) * (container.width + 2));
-
-    auto prev_frame_time = chrono::steady_clock::now();
-
-    bool running = true;
-
-    while (running)
+    bool app_running = true;
+    while (app_running)
     {
-        auto frame_start = chrono::steady_clock::now();
+        setup(config.use_colors);
+        fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
-        chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
-        float real_frame_time = elapsed_seconds.count();
-        float current_dt = real_frame_time;
+        if (config.use_colors)
+            print_string.reserve(container.height * container.width * 20);
+        else
+            print_string.reserve(container.height * ((container.width * 2)+ 1) - 1); // size without colors in mind
 
-        if (current_dt > 0.016f) {
-            current_dt = 0.016f; 
-        }
-        container.dt = current_dt;
+        vector<float> emission_arr;
+        emission_arr.resize((container.height + 2) * (container.width + 2));
 
-        prev_frame_time = frame_start;
+        auto prev_frame_time = chrono::steady_clock::now();
 
-        update_input(input_state);
-        apply_user_input(config, container, input_state, emission_arr);
-
-        if (input_state.quit) 
-            break;
-
-        vel_step(config.visc, container);
-        dens_step(0, config.diff, emission_arr, container);
-
-        set_print_string(print_string, container.dens, container.height, container.width, config.use_colors);
-
-        fmt::print("\033[H{}", print_string);
-        fmt::print("\033[H\033[92m{}\033[0m", get_fps_overlay(real_frame_time));
-        std::fflush(stdout);
-
-        auto target_time = frame_start + FRAME_DURATION;
-        auto now = chrono::steady_clock::now();
-
-        if (now < target_time)
+        bool sim_running = true;
+        while (sim_running)
         {
-            auto remaining_time = target_time - now;
-            
-            double remaining_ms = chrono::duration<double, milli>(remaining_time).count();
-             
-            sleep_exact(remaining_ms);
+            auto frame_start = chrono::steady_clock::now();
+
+            chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
+            float real_frame_time = elapsed_seconds.count();
+            float current_dt = real_frame_time;
+
+            if (current_dt > 0.016f) {
+                current_dt = 0.016f; 
+            }
+            container.dt = current_dt;
+
+            prev_frame_time = frame_start;
+
+            update_input(input_state);
+
+            if (input_state.reset)
+            {
+                // exit the alternate buffer, restore cursor, and clear colors
+                cout << "\033[?1049l\033[?25h\033[0m" << flush;
+
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+                restoreTerminal();
+                flushTerminalInput();
+                
+                input_state.reset = false; 
+                
+                break;
+            }
+
+            apply_user_input(config, container, input_state, emission_arr);
+
+            if (input_state.quit) 
+            {
+                app_running = false;
+                sim_running = false;
+            }
+
+            vel_step(config.visc, container);
+            dens_step(0, config.diff, emission_arr, container);
+
+            set_print_string(print_string, container.dens, container.height, container.width, config.use_colors);
+
+            fmt::print("\033[H{}", print_string);
+            fmt::print("\033[H\033[92m{}\033[0m", get_fps_overlay(real_frame_time));
+            std::fflush(stdout);
+
+            auto target_time = frame_start + FRAME_DURATION;
+            auto now = chrono::steady_clock::now();
+
+            if (now < target_time)
+            {
+                auto remaining_time = target_time - now;
+                
+                double remaining_ms = chrono::duration<double, milli>(remaining_time).count();
+                
+                sleep_exact(remaining_ms);
+            }
         }
     }
 
     shutdown(0);
     return 0;
-
 }
 
 inline void set_theme()
@@ -125,6 +148,8 @@ inline void set_theme()
 
 void setup(bool use_colors)
 {
+    cout << "\033[2J\033[H";
+
     cout << "=== ASCII Smoke Simulation ===\n\n";
 
     init_engine_timing();

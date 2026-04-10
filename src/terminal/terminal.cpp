@@ -105,6 +105,16 @@ void updateInput()
 #endif
 }
 
+void flushTerminalInput() {
+#ifdef _WIN32
+    // Safely discard all pending console input events on Windows
+    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+#else
+    // Flush the non-canonical input buffer on Linux/macOS
+    tcflush(STDIN_FILENO, TCIFLUSH);
+#endif
+}
+
 // Implement the restore function
 void restoreTerminal() {
 #ifndef _WIN32
