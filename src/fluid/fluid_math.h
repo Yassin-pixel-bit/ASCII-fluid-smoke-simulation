@@ -31,6 +31,16 @@ struct fluid_container
         vel_x_prev.resize(size);
         vel_y_prev.resize(size);
     }
+
+    inline void clear()
+    {
+        std::fill(dens.begin(), dens.end(), 0.0f);
+        std::fill(dens_prev.begin(), dens_prev.end(), 0.0f);
+        std::fill(vel_x.begin(), vel_x.end(), 0.0f);
+        std::fill(vel_y.begin(), vel_y.end(), 0.0f);
+        std::fill(vel_x_prev.begin(), vel_x_prev.end(), 0.0f);
+        std::fill(vel_y_prev.begin(), vel_y_prev.end(), 0.0f);
+    }
 };
 
 const int LIN_SOL_MAX = 20;

@@ -95,13 +95,13 @@ int main()
                 break;
             }
 
-            apply_user_input(config, container, input_state, emission_arr);
-
             if (input_state.quit) 
             {
                 app_running = false;
                 sim_running = false;
             }
+
+            apply_user_input(config, container, input_state, emission_arr);
 
             vel_step(config.visc, container);
             dens_step(0, config.diff, emission_arr, container);
