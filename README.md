@@ -7,7 +7,7 @@
 
 Written from scratch in C++, this engine is a direct implementation of Jos Stam's highly influential "Real-Time Fluid Dynamics for Games - [the paper](https://graphics.cs.cmu.edu/nsp/course/15-464/Fall09/papers/StamFluidforGames.pdf)" stable solver, featuring cross-platform asynchronous input and custom configuration parsing. It uses an optimized ANSI rendering pipeline for coloring the fluid/smoke.
 
-![ASCII Fluid Simulation Demo](https://raw.githubusercontent.com/Yassin-pixel-bit/ascii-fluid-smoke-simulation/assets/vaporwave.gif)
+![ASCII Fluid Simulation Demo](https://raw.githubusercontent.com/Yassin-pixel-bit/ascii-fluid-smoke-simulation/assets/preview.png)
 
 ## Features
 
