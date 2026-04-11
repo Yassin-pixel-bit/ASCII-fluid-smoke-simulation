@@ -16,6 +16,7 @@ using namespace std;
 
 void setup(bool use_colors);
 void shutdown(int signum);
+inline string set_theme();
 
 int main()
 {
@@ -46,10 +47,19 @@ int main()
     string print_string;
 
     bool app_running = true;
+    string active_theme = "Default";
+
     while (app_running)
     {
         setup(config.use_colors);
-        fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
+
+        if (config.use_colors)
+        {
+            cout << "\033[2J\033[H";
+            active_theme = set_theme();
+        }
+
+        fluid_container container(getTerminalHeight() - 1, getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
         if (config.use_colors)
             print_string.reserve(container.height * container.width * 20);
@@ -108,8 +118,13 @@ int main()
 
             set_print_string(print_string, container.dens, container.height, container.width, config.use_colors);
 
-            fmt::print("\033[H{}", print_string);
-            fmt::print("\033[H\033[92m{}\033[0m", get_fps_overlay(real_frame_time));
+            fmt::print("\033[2;1H{}", print_string);
+
+            static string current_hud;
+            if (update_hud(real_frame_time, active_theme, getTerminalWidth(), current_hud)) {
+                fmt::print("{}", current_hud);
+            }
+
             std::fflush(stdout);
 
             auto target_time = frame_start + FRAME_DURATION;
@@ -130,7 +145,7 @@ int main()
     return 0;
 }
 
-inline void set_theme()
+inline string set_theme()
 {
     print_theme_menu();
     
@@ -144,6 +159,8 @@ inline void set_theme()
     }
 
     init_selected_theme(choice - 1, render_str_len);
+
+    return get_theme_name(choice);
 }
 
 void setup(bool use_colors)
@@ -192,12 +209,6 @@ void setup(bool use_colors)
         cout << "Press ENTER to start the simulation...";
 
     cin.get();
-
-    if (use_colors)
-    {
-        cout << "\033[2J\033[H";
-        set_theme();
-    }
 
     // Force the actual terminal window background to pure black - Thanks gemini :)
     cout << "\033]11;#000000\007" << flush;
