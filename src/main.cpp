@@ -160,7 +160,7 @@ inline string set_theme()
 
     init_selected_theme(choice - 1, render_str_len);
 
-    return get_theme_name(choice);
+    return get_theme_name(choice - 1);
 }
 
 void setup(bool use_colors, bool needs_flush)
