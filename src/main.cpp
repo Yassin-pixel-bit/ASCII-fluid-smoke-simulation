@@ -3,6 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include <fmt/core.h>
+#include <fmt/color.h>
 #include "engine_timing.h"
 #include "terminal.h"
 #include "fluid_math.h"
@@ -165,56 +166,56 @@ inline string set_theme()
 
 void setup(bool use_colors)
 {
-    cout << "\033[2J\033[H";
+    fmt::print("\033[2J\033[H");
 
-    cout << "=== ASCII Smoke Simulation ===\n\n";
+    fmt::print("=== ASCII Smoke Simulation ===\n\n");
 
     init_engine_timing();
 
-    cout << "Controls:\n";
-
+    fmt::print("Controls:\n");
 #ifdef _WIN32
-    cout << " - Hold [SPACE] to pour smoke.\n";
-    cout << " - Hold [W,A,S,D] to apply wind.\n";
+    fmt::print(" - Hold [SPACE] to pour smoke.\n");
+    fmt::print(" - Hold [W,A,S,D] to apply wind.\n");
 #else
-    cout << " - Press [SPACE] to toggle pouring smoke on/off.\n";
-    cout << " - Press [W,A,S,D] to toggle wind direction on/off.\n";
+    fmt::print(" - Press [SPACE] to toggle pouring smoke on/off.\n");
+    fmt::print(" - Press [W,A,S,D] to toggle wind direction on/off.\n");
 #endif
 
-        cout << " - Press [Q] to quit the simulation.\n\n";
+    fmt::print("NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n");
 
-        cout << "NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n";
+    if (!use_colors)
+    {
+        fmt::print(fg(fmt::terminal_color::cyan), 
+            "Info: 24-bit ANSI colors are currently disabled in 'settings.ini'.\n\n");
+    }
 
-        if (!use_colors)
-        {
-            cout << "\033[96mNOTE: 24-bit ANSI colors are currently disabled.\n";
-            cout << "You can enable them by setting 'use_colors = 1' in 'settings.ini'.\033[0m\n\n";
-        }
+    auto warning_style = fg(fmt::terminal_color::bright_yellow);
     
 #ifdef _WIN32
-    cout << "\033[93mPlease use [Q] or Ctrl+C to exit safely.\033[0m\n";
-    cout << "\033[93mForce-closing via 'taskkill /F' may leave older terminals in a broken state.\033[0m\n";
-    cout << "\033[93mIf your terminal breaks (stuck screen or missing cursor), close the window and open a new one.\033[0m\n\n";
+    fmt::print(warning_style, "Warning: use [Q] or Ctrl+C to exit, force-closing the window may break your terminal.\n");
+    fmt::print(warning_style, "If your terminal breaks (stuck screen or missing cursor), close the window and open a new one.\n\n");
 #else
-    cout << "\033[93mPlease use [Q], Ctrl+C, or a polite 'kill' command to exit safely.\033[0m\n";
-    cout << "\033[93mForce-closing the window or using 'kill -9' (SIGKILL) will break the terminal.\033[0m\n";
-    cout << "\033[93mIf your terminal breaks (invisible text or missing cursor), type 'reset' and press ENTER.\033[0m\n\n";
+    fmt::print(warning_style, "Warning: Please use [Q], Ctrl+C, or a polite 'kill' command to exit safely. Force-closing (SIGKILL) may break your terminal.\n");
+    fmt::print(warning_style, "If your terminal breaks (invisible text or missing cursor), type 'reset' and press ENTER.\n\n");
 #endif
 
-    cout << "For the best experience, please maximize your terminal or press F11 now.\n";
+    fmt::print("Maximize your terminal (F11) for the best experience.\n\n");
 
     if (use_colors)
-        cout << "Press ENTER to choose a color theme...";
+        fmt::print("Press ENTER to choose a color theme...");
     else
-        cout << "Press ENTER to start the simulation...";
+        fmt::print("Press ENTER to start the simulation...");
 
+    // flush stdout before waiting for input, otherwise the prompt text might not render!
+    std::fflush(stdout);
     cin.get();
 
     // Force the actual terminal window background to pure black - Thanks gemini :)
-    cout << "\033]11;#000000\007" << flush;
+    fmt::print("\033]11;#000000\007");
 
-    // enters the alternate screen buffer, hides the cursor forces black background
-    cout << "\033[?1049h\033[40m\033[2J\033[?25l" << flush;
+    // enters the alternate screen buffer, hides the cursor
+    fmt::print("\033[?1049h\033[2J\033[?25l");
+    std::fflush(stdout);
 
     initTerminalSize();
 }

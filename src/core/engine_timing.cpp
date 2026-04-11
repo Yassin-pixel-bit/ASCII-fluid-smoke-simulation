@@ -20,8 +20,6 @@ void init_engine_timing()
     timeBeginPeriod(1);
     #endif
 
-        cout << "Calibrating OS scheduler resolution...";
-
     const int iterations = 20;
     double total_time = 0.0;
     double max_time = 0.0;
@@ -57,9 +55,6 @@ void init_engine_timing()
     OS_TOLERANCE = max_time - OS_PERIOD;
 
     if (OS_TOLERANCE < 0.5) OS_TOLERANCE = 0.5;
-
-    cout << "Done.\n";
-    cout << "Detected PERIOD: " << OS_PERIOD << "ms | TOLERANCE: " << OS_TOLERANCE << "ms\n\n";
 }
 
 void sleep_exact(double mili_secs)
