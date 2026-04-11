@@ -15,7 +15,7 @@
 
 using namespace std;
 
-void setup(bool use_colors);
+void setup(bool use_colors, bool needs_flush);
 void shutdown(int signum);
 inline string set_theme();
 
@@ -48,11 +48,13 @@ int main()
     string print_string;
 
     bool app_running = true;
+    bool first_run = true;
     string active_theme = "Default";
 
     while (app_running)
     {
-        setup(config.use_colors);
+        setup(config.use_colors, !first_run);
+        first_run = false;
 
         if (config.use_colors)
         {
@@ -95,11 +97,8 @@ int main()
                 // exit the alternate buffer, restore cursor, and clear colors
                 cout << "\033[?1049l\033[?25h\033[0m" << flush;
 
-                cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
-                restoreTerminal();
                 flushTerminalInput();
+                restoreTerminal();
                 
                 input_state.reset_state();
                 
@@ -164,7 +163,7 @@ inline string set_theme()
     return get_theme_name(choice);
 }
 
-void setup(bool use_colors)
+void setup(bool use_colors, bool needs_flush)
 {
     fmt::print("\033[2J\033[H");
 
@@ -200,6 +199,12 @@ void setup(bool use_colors)
 #endif
 
     fmt::print("Maximize your terminal (F11) for the best experience.\n\n");
+
+    if (needs_flush) 
+    {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
 
     if (use_colors)
         fmt::print("Press ENTER to choose a color theme...");

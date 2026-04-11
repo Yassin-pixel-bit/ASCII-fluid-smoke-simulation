@@ -3,6 +3,7 @@
 
 #ifdef _WIN32
     #include <windows.h>
+    #include <conio.h>
 #else
     #include <sys/ioctl.h>
     #include <unistd.h>
@@ -107,6 +108,9 @@ void updateInput()
 
 void flushTerminalInput() {
 #ifdef _WIN32
+    while (_kbhit()) {
+            _getch();
+        }
     // Safely discard all pending console input events on Windows
     FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
 #else
