@@ -176,17 +176,26 @@ void update_input(InputState& input_state)
     updateActionState(input_state.wind_s, 's');
     updateActionState(input_state.wind_a, 'a');
     updateActionState(input_state.wind_d, 'd');
+    
+    input_state.reset = isKeyPressed('r');
+    input_state.clear = isKeyPressed('c');
+    
+    input_state.quit = isKeyPressed('q');
+    if (!input_state.quit)
+        input_state.quit = isKeyPressed('\x03'); // Ctrl+C
 }
 
-void apply_user_input(const sim_config& config, fluid_container& container, InputState& input_state, vector<float>& emission_arr)
+void apply_user_input(const sim_config& config, fluid_container& container, const InputState& input_state, vector<float>& emission_arr)
 {
-    if (isKeyPressed('q') || isKeyPressed('\x03')) 
-    {
-        input_state.quit = true;
-    }
-    else
+    bool apply_physics = !(input_state.quit || input_state.reset || input_state.clear);
+
+    if (apply_physics)
     {
         add_wind(config, container, input_state);
         add_sources(config, container, input_state, emission_arr);
+    }
+    else if (input_state.clear)
+    {
+        container.clear();
     }
 }

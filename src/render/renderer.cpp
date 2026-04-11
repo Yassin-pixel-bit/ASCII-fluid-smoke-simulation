@@ -102,24 +102,25 @@ void set_print_string(string &print_string, const vector<float>& grid ,const int
     flusher.close();
 }
 
-string get_fps_overlay(float dt)
+bool update_hud(float dt, const string_view theme_name, int term_width, string& out_hud)
 {
-    static float fps_timer = 0.0f;
+    static float fps_timer = 1.0f;
     static int frame_count = 0;
-    static string fps_display = "FPS: --";
 
     fps_timer += dt;
     frame_count++;
 
-    // Update the string only once per second so it is readable
     if (fps_timer >= 1.0f)
     {
-        fps_display = "FPS: " + to_string(frame_count);
+        string hud_text = fmt::format("  [Theme: {}]   FPS: {:<4} Controls: [R]reset  [C]clear  [Q]quit", theme_name, frame_count);
+        string padded_hud = fmt::format("{:^{}}", hud_text, term_width);
         
-        // Reset counters (subtracting 1.0f instead of setting to 0 keeps the remainder for precise timing)
+        // Dark Gray background and Pure White text
+        out_hud = fmt::format("\033[1;1H\033[1m\033[38;5;15m\033[48;5;236m{}\033[0m", padded_hud);
+
         fps_timer -= 1.0f;
         frame_count = 0;
+        return true; 
     }
-
-    return fps_display;
+    return false;
 }

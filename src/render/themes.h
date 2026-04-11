@@ -29,3 +29,4 @@ void print_theme_menu();
 RGB get_theme_color(int index);
 const std::string& get_theme_ansi(int index);
 int get_themes_max();
+std::string get_theme_name(int idx);

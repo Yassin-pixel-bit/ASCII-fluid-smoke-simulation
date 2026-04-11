@@ -85,6 +85,11 @@ RGB get_theme_color(int index)
     return palette[index];
 }
 
+std::string get_theme_name(int idx)
+{
+    return theme_registry[idx].name;
+}
+
 const std::string& get_theme_ansi(int index)
 {
     return ansi_palette[index];

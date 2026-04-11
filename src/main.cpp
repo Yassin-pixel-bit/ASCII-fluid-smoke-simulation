@@ -3,6 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include <fmt/core.h>
+#include <fmt/color.h>
 #include "engine_timing.h"
 #include "terminal.h"
 #include "fluid_math.h"
@@ -14,8 +15,9 @@
 
 using namespace std;
 
-void setup(bool use_colors);
+void setup(bool use_colors, bool needs_flush);
 void shutdown(int signum);
+inline string set_theme();
 
 int main()
 {
@@ -38,76 +40,112 @@ int main()
         cout << "\n\n";
     }
 
-    setup(config.use_colors);
     InputState input_state;
 
     const float TARGET_FPS = config.target_fps;
     const chrono::microseconds FRAME_DURATION((int)(1000000.0f / TARGET_FPS));
 
-    fluid_container container(getTerminalHeight(), getTerminalWidth() / 2, 1.0f / TARGET_FPS);
-
     string print_string;
-    if (config.use_colors)
-        print_string.reserve(container.height * container.width * 20);
-    else
-        print_string.reserve(container.height * ((container.width * 2)+ 1) - 1); // the old size
 
-    vector<float> emission_arr;
-    emission_arr.resize((container.height + 2) * (container.width + 2));
+    bool app_running = true;
+    bool first_run = true;
+    string active_theme = "Default";
 
-    auto prev_frame_time = chrono::steady_clock::now();
-
-    bool running = true;
-
-    while (running)
+    while (app_running)
     {
-        auto frame_start = chrono::steady_clock::now();
+        setup(config.use_colors, !first_run);
+        first_run = false;
 
-        chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
-        float real_frame_time = elapsed_seconds.count();
-        float current_dt = real_frame_time;
-
-        if (current_dt > 0.016f) {
-            current_dt = 0.016f; 
-        }
-        container.dt = current_dt;
-
-        prev_frame_time = frame_start;
-
-        update_input(input_state);
-        apply_user_input(config, container, input_state, emission_arr);
-
-        if (input_state.quit) 
-            break;
-
-        vel_step(config.visc, container);
-        dens_step(0, config.diff, emission_arr, container);
-
-        set_print_string(print_string, container.dens, container.height, container.width, config.use_colors);
-
-        fmt::print("\033[H{}", print_string);
-        fmt::print("\033[H\033[92m{}\033[0m", get_fps_overlay(real_frame_time));
-        std::fflush(stdout);
-
-        auto target_time = frame_start + FRAME_DURATION;
-        auto now = chrono::steady_clock::now();
-
-        if (now < target_time)
+        if (config.use_colors)
         {
-            auto remaining_time = target_time - now;
-            
-            double remaining_ms = chrono::duration<double, milli>(remaining_time).count();
-             
-            sleep_exact(remaining_ms);
+            cout << "\033[2J\033[H";
+            active_theme = set_theme();
+        }
+
+        fluid_container container(getTerminalHeight() - 1, getTerminalWidth() / 2, 1.0f / TARGET_FPS);
+
+        if (config.use_colors)
+            print_string.reserve(container.height * container.width * 20);
+        else
+            print_string.reserve(container.height * ((container.width * 2)+ 1) - 1); // size without colors in mind
+
+        vector<float> emission_arr;
+        emission_arr.resize((container.height + 2) * (container.width + 2));
+
+        auto prev_frame_time = chrono::steady_clock::now();
+
+        bool sim_running = true;
+        while (sim_running)
+        {
+            auto frame_start = chrono::steady_clock::now();
+
+            chrono::duration<float> elapsed_seconds = frame_start - prev_frame_time;
+            float real_frame_time = elapsed_seconds.count();
+            float current_dt = real_frame_time;
+
+            if (current_dt > 0.016f) {
+                current_dt = 0.016f; 
+            }
+            container.dt = current_dt;
+
+            prev_frame_time = frame_start;
+
+            update_input(input_state);
+
+            if (input_state.reset)
+            {
+                // exit the alternate buffer, restore cursor, and clear colors
+                cout << "\033[?1049l\033[?25h\033[0m" << flush;
+
+                flushTerminalInput();
+                restoreTerminal();
+                
+                input_state.reset_state();
+                
+                break;
+            }
+
+            if (input_state.quit) 
+            {
+                app_running = false;
+                sim_running = false;
+            }
+
+            apply_user_input(config, container, input_state, emission_arr);
+
+            vel_step(config.visc, container);
+            dens_step(0, config.diff, emission_arr, container);
+
+            set_print_string(print_string, container.dens, container.height, container.width, config.use_colors);
+
+            fmt::print("\033[2;1H{}", print_string);
+
+            static string current_hud;
+            if (update_hud(real_frame_time, active_theme, getTerminalWidth(), current_hud)) {
+                fmt::print("{}", current_hud);
+            }
+
+            std::fflush(stdout);
+
+            auto target_time = frame_start + FRAME_DURATION;
+            auto now = chrono::steady_clock::now();
+
+            if (now < target_time)
+            {
+                auto remaining_time = target_time - now;
+                
+                double remaining_ms = chrono::duration<double, milli>(remaining_time).count();
+                
+                sleep_exact(remaining_ms);
+            }
         }
     }
 
     shutdown(0);
     return 0;
-
 }
 
-inline void set_theme()
+inline string set_theme()
 {
     print_theme_menu();
     
@@ -121,61 +159,68 @@ inline void set_theme()
     }
 
     init_selected_theme(choice - 1, render_str_len);
+
+    return get_theme_name(choice - 1);
 }
 
-void setup(bool use_colors)
+void setup(bool use_colors, bool needs_flush)
 {
-    cout << "=== ASCII Smoke Simulation ===\n\n";
+    fmt::print("\033[2J\033[H");
+
+    fmt::print("=== ASCII Smoke Simulation ===\n\n");
 
     init_engine_timing();
 
-    cout << "Controls:\n";
-
+    fmt::print("Controls:\n");
 #ifdef _WIN32
-    cout << " - Hold [SPACE] to pour smoke.\n";
-    cout << " - Hold [W,A,S,D] to apply wind.\n";
+    fmt::print(" - Hold [SPACE] to pour smoke.\n");
+    fmt::print(" - Hold [W,A,S,D] to apply wind.\n");
 #else
-    cout << " - Press [SPACE] to toggle pouring smoke on/off.\n";
-    cout << " - Press [W,A,S,D] to toggle wind direction on/off.\n";
+    fmt::print(" - Press [SPACE] to toggle pouring smoke on/off.\n");
+    fmt::print(" - Press [W,A,S,D] to toggle wind direction on/off.\n");
 #endif
 
-        cout << " - Press [Q] to quit the simulation.\n\n";
+    fmt::print("NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n");
 
-        cout << "NOTE: You can customize your experience by changing the settings in 'settings.ini'.\n\n";
-
-        if (!use_colors)
-        {
-            cout << "\033[96mNOTE: 24-bit ANSI colors are currently disabled.\n";
-            cout << "You can enable them by setting 'use_colors = 1' in 'settings.ini'.\033[0m\n\n";
-        }
-    
-#ifdef _WIN32
-    cout << "\033[93mPlease use [Q] or Ctrl+C to exit safely.\033[0m\n";
-    cout << "\033[93mForce-closing via 'taskkill /F' may leave older terminals in a broken state.\033[0m\n";
-    cout << "\033[93mIf your terminal breaks (stuck screen or missing cursor), close the window and open a new one.\033[0m\n\n";
-#else
-    cout << "\033[93mPlease use [Q], Ctrl+C, or a polite 'kill' command to exit safely.\033[0m\n";
-    cout << "\033[93mForce-closing the window or using 'kill -9' (SIGKILL) will break the terminal.\033[0m\n";
-    cout << "\033[93mIf your terminal breaks (invisible text or missing cursor), type 'reset' and press ENTER.\033[0m\n\n";
-#endif
-
-    cout << "For the best experience, please maximize your terminal or press F11 now.\n";
-
-    if (use_colors)
-        cout << "Press ENTER to choose a color theme...";
-    else
-        cout << "Press ENTER to start the simulation...";
-
-    cin.get();
-
-    if (use_colors)
+    if (!use_colors)
     {
-        cout << "\033[2J\033[H";
-        set_theme();
+        fmt::print(fg(fmt::terminal_color::cyan), 
+            "Info: 24-bit ANSI colors are currently disabled in 'settings.ini'.\n\n");
     }
 
-    // enters the alternate screen buffer and hides the cursor
-    cout << "\033[?1049h\033[?25l" << flush;
+    auto warning_style = fg(fmt::terminal_color::bright_yellow);
+    
+#ifdef _WIN32
+    fmt::print(warning_style, "Warning: use [Q] or Ctrl+C to exit, force-closing the window may break your terminal.\n");
+    fmt::print(warning_style, "If your terminal breaks (stuck screen or missing cursor), close the window and open a new one.\n\n");
+#else
+    fmt::print(warning_style, "Warning: Please use [Q], Ctrl+C, or a polite 'kill' command to exit safely. Force-closing (SIGKILL) may break your terminal.\n");
+    fmt::print(warning_style, "If your terminal breaks (invisible text or missing cursor), type 'reset' and press ENTER.\n\n");
+#endif
+
+    fmt::print("Maximize your terminal (F11) for the best experience.\n\n");
+
+    if (needs_flush) 
+    {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
+
+    if (use_colors)
+        fmt::print("Press ENTER to choose a color theme...");
+    else
+        fmt::print("Press ENTER to start the simulation...");
+
+    // flush stdout before waiting for input, otherwise the prompt text might not render!
+    std::fflush(stdout);
+    cin.get();
+
+    // Force the actual terminal window background to pure black - Thanks gemini :)
+    fmt::print("\033]11;#000000\007");
+
+    // enters the alternate screen buffer, hides the cursor
+    fmt::print("\033[?1049h\033[2J\033[?25l");
+    std::fflush(stdout);
 
     initTerminalSize();
 }
@@ -184,9 +229,10 @@ void shutdown(int signum = 0)
 {
     shutdown_engine_timing();
     restoreTerminal();
-    // \033[?1049l exits the alternate screen buffer
-    // \033[?25h  restores the cursor
-    // \033[0m    resets all colors
+
+    // Reset the terminal window background back to the user's default theme - Thanks gemini :)
+    cout << "\033]111\007" << flush;
+
     cout << "\033[?1049l\033[?25h\033[0m" << flush;
     
     if (signum != 0) {

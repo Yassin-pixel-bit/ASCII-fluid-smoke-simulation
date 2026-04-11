@@ -3,6 +3,7 @@
 
 #ifdef _WIN32
     #include <windows.h>
+    #include <conio.h>
 #else
     #include <sys/ioctl.h>
     #include <unistd.h>
@@ -71,13 +72,13 @@ bool isKeyJustPressed(char key) {
 #ifndef _WIN32
 static struct termios original_t;
 static bool original_saved = false;
+static bool input_initialized = false;
 #endif
 
 void updateInput() 
 {
 #ifndef _WIN32
-    static bool init = false;
-    if (!init) {
+    if (!input_initialized) {
         tcgetattr(STDIN_FILENO, &original_t);
         original_saved = true;
         struct termios t = original_t;
@@ -88,7 +89,7 @@ void updateInput()
         t.c_cc[VTIME] = 0; 
 
         tcsetattr(STDIN_FILENO, TCSANOW, &t);
-        init = true;
+        input_initialized = true;
     }
 
     std::memset(key_just_pressed, 0, sizeof(key_just_pressed));
@@ -105,12 +106,26 @@ void updateInput()
 #endif
 }
 
+void flushTerminalInput() {
+#ifdef _WIN32
+    while (_kbhit()) {
+            _getch();
+        }
+    // Safely discard all pending console input events on Windows
+    FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+#else
+    // Flush the non-canonical input buffer on Linux/macOS
+    tcflush(STDIN_FILENO, TCIFLUSH);
+#endif
+}
+
 // Implement the restore function
 void restoreTerminal() {
 #ifndef _WIN32
     if (original_saved) {
         // Push the original settings back to the terminal immediately
         tcsetattr(STDIN_FILENO, TCSANOW, &original_t);
+        input_initialized = false;
     }
 #endif
 }
