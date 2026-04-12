@@ -46,43 +46,24 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin"
 )
 
-# BOOTSTRAPPER (launcher)
+# PYTHON UI PACKAGER (PyInstaller)
 
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
-add_executable(launcher src/launcher/launcher.cpp)
-target_link_libraries(launcher PRIVATE Python3::Python)
+add_custom_target(launcher ALL
+    COMMAND Python3::Interpreter -m PyInstaller
+        --clean
+        --noconfirm
+        --onefile
+        --windowed
+        --collect-all customtkinter
+        --name launcher
+        --distpath ${CMAKE_SOURCE_DIR}
+        --workpath ${CMAKE_CURRENT_BINARY_DIR}/build
+        --specpath ${CMAKE_CURRENT_BINARY_DIR}
+        ${CMAKE_SOURCE_DIR}/src/launcher/launcher_py/main.py
+    COMMENT ">>> Packaging Python UI into a standalone executable..."
+    VERBATIM
+)
 
 add_dependencies(launcher ${PROJECT_NAME})
-
-if(MSVC)
-    set_target_properties(launcher PROPERTIES WIN32_EXECUTABLE TRUE)
-endif()
-
-set_target_properties(launcher PROPERTIES 
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
-)
-
-# POST-BUILD AUTOMATION (Direct to Root)
-
-add_custom_command(TARGET launcher POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory 
-            ${CMAKE_SOURCE_DIR}/src/launcher/launcher_py 
-            ${CMAKE_SOURCE_DIR}/launcher_py
-    COMMENT ">>> Copying Python UI Source to Root Directory..."
-)
-
-if(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/vendor/python_embed")
-    add_custom_command(TARGET launcher POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory 
-                ${CMAKE_SOURCE_DIR}/vendor/python_embed 
-                ${CMAKE_SOURCE_DIR}/
-        COMMENT ">>> Copying Windows portable Python environment to Root Directory..."
-    )
-elseif(WIN32)
-    add_custom_command(TARGET launcher POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo ">>> Skipping Python DLL copy: 'vendor/python_embed' folder not found."
-    )
-endif()

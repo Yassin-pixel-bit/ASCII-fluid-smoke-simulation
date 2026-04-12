@@ -1,7 +1,13 @@
 import os
 import platform
+import sys
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# PyInstaller Cross-Platform Pathing
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 SETTINGS_PATH = os.path.join(BASE_DIR, "settings.ini")
 
 EXE_NAME = "ASCII_fluid.exe" if platform.system() == "Windows" else "ASCII_fluid"
