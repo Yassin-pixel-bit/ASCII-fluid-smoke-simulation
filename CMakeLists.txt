@@ -50,6 +50,32 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -c "import PyInstaller"
+    RESULT_VARIABLE PYINSTALLER_STATUS
+    ERROR_QUIET
+)
+
+if(NOT PYINSTALLER_STATUS EQUAL 0)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        message(FATAL_ERROR 
+            " PYINSTALLER NOT FOUND!\n"
+            " The Python UI Packager requires PyInstaller to build the executable.\n"
+            " Please install 'pip' and then install PyInstaller:\n"
+            "    1. sudo apt install python3-pip\n"
+            "    2. pip3 install pyinstaller\n"
+            "       (Add --break-system-packages if Ubuntu blocks it)\n"
+        )
+    else()
+        message(FATAL_ERROR 
+            " PYINSTALLER NOT FOUND!\n"
+            " The Python UI Packager requires PyInstaller to build the executable.\n"
+            " Please install it by running the following command in your terminal:\n"
+            "    ${Python3_EXECUTABLE} -m pip install pyinstaller\n\n"
+        )
+    endif()
+endif()
+
 add_custom_target(launcher ALL
     COMMAND Python3::Interpreter -m PyInstaller
         --clean
