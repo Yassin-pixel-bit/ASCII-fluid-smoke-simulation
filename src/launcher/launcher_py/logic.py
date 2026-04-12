@@ -36,18 +36,22 @@ def safe_read_val(config_obj, section, key, fallback, val_type=float, min_limit=
     except ValueError:
         return fallback
 
-
 def spawn_terminal(executable_path, working_dir):
     """Launch the engine executable in a new terminal window, cross-platform."""
     sys_os = platform.system()
+    
     if sys_os == "Windows":
         subprocess.Popen(f'start "" "{executable_path}"', shell=True, cwd=working_dir)
+        
     elif sys_os == "Darwin":
         subprocess.Popen(["open", "-a", "Terminal", executable_path], cwd=working_dir)
+        
     else:
         terminals = ["gnome-terminal", "konsole", "xfce4-terminal", "alacritty", "xterm"]
         for term in terminals:
             if shutil.which(term):
                 subprocess.Popen([term, "-e", executable_path], cwd=working_dir)
                 return
-        subprocess.Popen([executable_path], cwd=working_dir)
+            
+        os.chdir(working_dir)
+        os.execv(executable_path, [executable_path])
