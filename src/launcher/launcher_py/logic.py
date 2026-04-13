@@ -4,7 +4,7 @@ import platform
 import shutil
 import os
 
-from constants import DEFAULTS, SETTINGS_PATH
+from constants import DEFAULTS, SETTINGS_PATH, ENGINE_DIR
 
 
 def load_config() -> configparser.ConfigParser:
@@ -36,22 +36,22 @@ def safe_read_val(config_obj, section, key, fallback, val_type=float, min_limit=
     except ValueError:
         return fallback
 
-def spawn_terminal(executable_path, working_dir):
+def spawn_terminal(executable_path):
     """Launch the engine executable in a new terminal window, cross-platform."""
     sys_os = platform.system()
     
     if sys_os == "Windows":
-        subprocess.Popen(f'start "" "{executable_path}"', shell=True, cwd=working_dir)
+        subprocess.Popen(f'start "" "{executable_path}"', shell=True, cwd=ENGINE_DIR)
         
     elif sys_os == "Darwin":
-        subprocess.Popen(["open", "-a", "Terminal", executable_path], cwd=working_dir)
+        subprocess.Popen(["open", "-a", "Terminal", executable_path], cwd=ENGINE_DIR)
         
     else:
         terminals = ["gnome-terminal", "konsole", "xfce4-terminal", "alacritty", "xterm"]
         for term in terminals:
             if shutil.which(term):
-                subprocess.Popen([term, "-e", executable_path], cwd=working_dir)
+                subprocess.Popen([term, "-e", executable_path], cwd=ENGINE_DIR)
                 return
             
-        os.chdir(working_dir)
+        os.chdir(ENGINE_DIR)
         os.execv(executable_path, [executable_path])

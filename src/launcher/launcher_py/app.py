@@ -57,7 +57,7 @@ class AppLauncher:
             self.config.write(configfile)
 
         print(f"Launching Engine: {ENGINE_EXE_PATH}")
-        spawn_terminal(ENGINE_EXE_PATH, BASE_DIR)
+        spawn_terminal(ENGINE_EXE_PATH)
         sys.exit(0)
 
     def build_slider_widget(self, frame, section_name, key, meta, val):

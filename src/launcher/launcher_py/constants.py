@@ -8,10 +8,12 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-SETTINGS_PATH = os.path.join(BASE_DIR, "settings.ini")
-
 EXE_NAME = "ASCII_fluid.exe" if platform.system() == "Windows" else "ASCII_fluid"
 ENGINE_EXE_PATH = os.path.join(BASE_DIR, "bin", EXE_NAME)
+
+ENGINE_DIR = os.path.dirname(ENGINE_EXE_PATH)
+
+SETTINGS_PATH = os.path.join(ENGINE_DIR, "settings.ini")
 
 DEFAULTS = {
     "Engine": {
