@@ -99,6 +99,8 @@ void add_sources(const sim_config& config, fluid_container& container, const Inp
 
         if (radius < 0) radius = 0;
 
+        container.expand_to_include(fluid_x, fluid_y, radius);
+
         float amount = config.fluid_amount;
         float push = config.spawn_push;
 

@@ -64,6 +64,9 @@ int main()
 
         fluid_container container(getTerminalHeight() - 1, getTerminalWidth() / 2, 1.0f / TARGET_FPS);
 
+        int max_force = max(config.wind_force, config.spawn_push);
+        container.initialize_simulation(max_force);
+
         if (config.use_colors)
             print_string.reserve(container.height * container.width * 20);
         else
