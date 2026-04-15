@@ -1,6 +1,5 @@
 #include "fluid_math.h"
 #include "terminal.h"
-#include "renderer.h"
 
 using namespace std;
 
@@ -181,90 +180,9 @@ void project(vector<float>& u, vector<float>& v, vector<float>& pressure, vector
     set_bnd(2, v, container);
 }
 
-void update_bounds(fluid_container& container)
-{
-    static float threshold = 1.0f / render_str_len;
-
-    int tight_min_y = container.max_y;
-    int tight_max_y = container.min_y;
-    int tight_min_x = container.max_x;
-    int tight_max_x = container.min_x;
-
-    bool has_fluid = false;
-
-    // Find Top Edge
-    for (int y = container.min_y; y <= container.max_y; y++) 
-    {
-        for (int x = container.min_x; x <= container.max_x; x++) 
-        {
-            if (container.dens[container.IDX(x, y)] > threshold) 
-            {
-                tight_min_y = y;
-                has_fluid = true;
-                break;
-            }
-        }
-        if (has_fluid) break;
-    }
-
-    // If the screen is totally empty, collapse the box to 0
-    if (!has_fluid) 
-    {
-        container.reset_bounds();
-        return;
-    }
-
-    // Find Bottom Edge
-    bool found_bottom = false;
-    for (int y = container.max_y; y >= tight_min_y; y--) 
-    {
-        for (int x = container.min_x; x <= container.max_x; x++) 
-        {
-            if (container.dens[container.IDX(x, y)] > threshold) 
-            {
-                tight_max_y = y;
-                found_bottom = true;
-                break;
-            }
-        }
-        if (found_bottom) break;
-    }
-
-    // Find Left Edge
-    for (int y = tight_min_y; y <= tight_max_y; y++) 
-    {
-        for (int x = container.min_x; x < tight_min_x; x++) 
-        {
-            if (container.dens[container.IDX(x, y)] > threshold) 
-            {
-                tight_min_x = x;
-                break;
-            }
-        }
-    }
-
-    // Find Right Edge
-    for (int y = tight_min_y; y <= tight_max_y; y++) 
-    {
-        for (int x = container.max_x; x > tight_max_x; x--) 
-        {
-            if (container.dens[container.IDX(x, y)] > threshold) 
-            {
-                tight_max_x = x;
-                break;
-            }
-        }
-    }
-
-    container.min_x = std::max(1, tight_min_x - container.safety_buffer);
-    container.max_x = std::min(container.width, tight_max_x + container.safety_buffer);
-    container.min_y = std::max(1, tight_min_y - container.safety_buffer);
-    container.max_y = std::min(container.height, tight_max_y + container.safety_buffer);
-}
-
 void dens_step(int boundary_t, float diff, vector<float>& emission_arr, fluid_container& container)
 {
-    update_bounds(container);
+    container.update_bounds();
 
     add_source(container.dens, emission_arr, container);
 

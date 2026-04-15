@@ -2,15 +2,18 @@
 
 #include <iostream>
 #include <vector>
-#include <math.h>
+#include "renderer.h"
 
-
-struct fluid_container 
+class fluid_container
 {
+private:
+    // lowest visible density
+    static constexpr float threshold = 1.0f / render_str_len;
+
+public:
     int height;
     int width;
     float dt;
-
     // Grids
     std::vector<float> dens;
     std::vector<float> dens_prev;
@@ -18,20 +21,20 @@ struct fluid_container
     std::vector<float> vel_y;
     std::vector<float> vel_x_prev;
     std::vector<float> vel_y_prev;
-
     // active-box vars
     int min_x, max_x, min_y, max_y;
     int safety_buffer;
 
-    // Convert 2D coordinates (x, y) to 1D array index for a grid of size (n+2) x (n+2)
-    inline int IDX(int i, int j) { return j * (width + 2) + i; }
+    // constructor
+    fluid_container(int Height, int Width, float DT);
 
+    // Convert 2D coordinates (x, y) to 1D array index for a grid of size (n+2) x (n+2)
+    inline int IDX(int i, int j) const { return j * (width + 2) + i; } 
     inline void reset_bounds() 
     {
         min_x = width; max_x = 1;
         min_y = height; max_y = 1;
     }
-
     inline void expand_to_include(int x, int y, int radius) 
     {
         min_x = std::max(1, std::min(min_x, x - radius));
@@ -39,22 +42,6 @@ struct fluid_container
         min_y = std::max(1, std::min(min_y, y - radius));
         max_y = std::min(height, std::max(max_y, y + radius));
     }
-
-    // constructor
-    fluid_container(int Height, int Width, float DT) : height(Height), width(Width), dt(DT)
-    {
-        int size = (height + 2) * (width + 2);
-
-        dens.resize(size);
-        dens_prev.resize(size);
-        vel_x.resize(size);
-        vel_y.resize(size);
-        vel_x_prev.resize(size);
-        vel_y_prev.resize(size);
-        safety_buffer = 0;
-        reset_bounds();
-    }
-
     inline void clear()
     {
         std::fill(dens.begin(), dens.end(), 0.0f);
@@ -67,14 +54,12 @@ struct fluid_container
         reset_bounds();
     }
 
-    void initialize_simulation(float max_wind_force)
-    {
-        // get the delta-time of 1 frame in a 60 FPS game loop
-        float max_dt = 1.0f / 60.0f;
-        float scaled_dt = max_dt * std::max(width, height);
+    void initialize_simulation(float max_wind_force);
+    void update_bounds();
 
-        safety_buffer = std::ceil(max_wind_force * scaled_dt) + 1;
-    }
+private:
+    int find_y_bound(int y_start, int y_end, int step) const;
+    int find_x_bound(int y_start, int y_end, int x_start, int current_best, int step) const;
 };
 
 const int LIN_SOL_MAX = 20;
