@@ -195,16 +195,16 @@ void dens_step(int boundary_t, float diff, vector<float>& emission_arr, fluid_co
     fill(emission_arr.begin(), emission_arr.end(), 0.0f);
 }
 
-void vel_step(float viscousity, fluid_container& container)
+void vel_step(float viscosity, fluid_container& container)
 {
     add_source(container.vel_x, container.vel_x_prev, container);
     add_source(container.vel_y, container.vel_y_prev, container);
 
     swap(container.vel_x_prev, container.vel_x); 
-    diffuse(1, container.vel_x, container.vel_x_prev, viscousity, container, false);
+    diffuse(1, container.vel_x, container.vel_x_prev, viscosity, container, false);
 
     swap(container.vel_y_prev, container.vel_y); 
-    diffuse(2, container.vel_y, container.vel_y_prev, viscousity, container, false);
+    diffuse(2, container.vel_y, container.vel_y_prev, viscosity, container, false);
 
     project(container.vel_x, container.vel_y, container.vel_x_prev, container.vel_y_prev, container);
     swap(container.vel_x_prev, container.vel_x);

@@ -65,4 +65,4 @@ private:
 const int LIN_SOL_MAX = 20;
 
 void dens_step(int boundary_t, float diff, std::vector<float>& emission_arr, fluid_container& container);
-void vel_step(float viscousity, fluid_container& container);
+void vel_step(float viscosity, fluid_container& container);
