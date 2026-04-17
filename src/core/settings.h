@@ -26,3 +26,6 @@ struct sim_config {
 };
 
 void get_user_settings(sim_config& config, std::vector<std::string>& warnings);
+
+static constexpr float MIN_PHYSICS_FPS = 60.0f;
+static constexpr float MAX_DT = 1.0f / MIN_PHYSICS_FPS;

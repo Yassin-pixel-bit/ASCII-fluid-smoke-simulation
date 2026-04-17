@@ -1,4 +1,5 @@
 #include "fluid_math.h"
+#include "settings.h"
 #include <math.h>
 
 fluid_container::fluid_container(int Height, int Width, float DT)
@@ -19,8 +20,7 @@ fluid_container::fluid_container(int Height, int Width, float DT)
 
 void fluid_container::initialize_simulation(float max_wind_force)
 {
-    static constexpr float max_dt = 1.0f / 60.0f;
-    float scaled_dt = max_dt * std::max(width, height);
+    float scaled_dt = MAX_DT * std::max(width, height);
 
     safety_buffer = std::ceil(max_wind_force * scaled_dt) + 1;
 }

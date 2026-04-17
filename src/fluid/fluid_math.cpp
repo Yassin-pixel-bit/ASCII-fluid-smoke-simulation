@@ -182,9 +182,8 @@ void project(vector<float>& u, vector<float>& v, vector<float>& pressure, vector
 
 void dens_step(int boundary_t, float diff, vector<float>& emission_arr, fluid_container& container)
 {
-    container.update_bounds();
-
     add_source(container.dens, emission_arr, container);
+    container.update_bounds();
 
     swap(container.dens_prev, container.dens);
     diffuse(boundary_t, container.dens, container.dens_prev, diff, container, true);

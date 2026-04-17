@@ -86,8 +86,8 @@ int main()
             float real_frame_time = elapsed_seconds.count();
             float current_dt = real_frame_time;
 
-            if (current_dt > 0.016f) {
-                current_dt = 0.016f; 
+            if (current_dt > MAX_DT) {
+                current_dt = MAX_DT; 
             }
             container.dt = current_dt;
 
