@@ -43,19 +43,28 @@ void set_bnd(int b, vector<float>& grid, fluid_container& container)
     grid[bottom_left_corner + container.width + 1] = 0.5f * (grid[bottom_left_corner + container.width] + grid[bottom_left_corner + container.width + 1 - grid_stride]);
 }
 
-void lin_solve(int boundary_t, std::vector<float>& x, const std::vector<float>& x0, float a, float c, fluid_container& container)
+void lin_solve(int boundary_t, std::vector<float>& x, const std::vector<float>& x0, float a, float c, fluid_container& container, bool active_box)
 {
     int grid_stride = container.width + 2;
-    
     float inv_c = 1.0f / c;
+
+    int start_x = 1, start_y = 1, end_x = container.width, end_y = container.height;
+    if (active_box)
+    {
+        start_x = container.min_x;
+        start_y = container.min_y;
+        end_x = container.max_x;
+        end_y = container.max_y;
+    }
+
 
     for (int k = 0; k < LIN_SOL_MAX; k++)
     {
-        int center = grid_stride + 1;
+        int center = (start_y * grid_stride) + start_x;
 
-        for (int i = 1; i <= container.height; i++)
+        for (int i = start_y; i <= end_y; i++)
         {
-            for (int j = 1; j <= container.width; j++)
+            for (int j = start_x; j <= end_x; j++)
             {
                 x[center] = 
                 (x0[center] + 
@@ -70,21 +79,20 @@ void lin_solve(int boundary_t, std::vector<float>& x, const std::vector<float>& 
                 center++;
             }
 
-            // jump over the right wall and next left wall.
-            center += 2;
+            // Jump over the unused width of the grid to get to the next row
+            center += (grid_stride - (end_x - start_x + 1));
         }
         set_bnd(boundary_t, x, container);
     }
 }
 
-void diffuse(int boundary_t, vector<float>& curr_state, vector<float>& prev_state, float diff, fluid_container& container)
+void diffuse(int boundary_t, vector<float>& curr_state, vector<float>& prev_state, float diff, fluid_container& container, bool active_box)
 {
     float diffusion_factor = container.dt * diff * container.height * container.width;
-
-    lin_solve(boundary_t, curr_state, prev_state, diffusion_factor, 1 + 4 * diffusion_factor, container);
+    lin_solve(boundary_t, curr_state, prev_state, diffusion_factor, 1 + 4 * diffusion_factor, container, active_box);
 }
 
-void advect(int boundary_t, vector<float>& curr_state, const vector<float>& prev_state, const vector<float>& vel_x, const vector<float>& vel_y, fluid_container& container)
+void advect(int boundary_t, vector<float>& curr_state, const vector<float>& prev_state, const vector<float>& vel_x, const vector<float>& vel_y, fluid_container& container, bool active_box)
 {
     int left_idx, top_idx, right_idx, bottom_idx;
     float back_x, back_y, inv_blend_x, inv_blend_y, blend_x, blend_y;
@@ -92,9 +100,18 @@ void advect(int boundary_t, vector<float>& curr_state, const vector<float>& prev
     int max_dim = max(container.width, container.height);
     float scaled_dt = container.dt * max_dim;
 
-    for (int i = 1; i <= container.height; i++)
+    int start_x = 1, start_y = 1, end_x = container.width, end_y = container.height;
+    if (active_box)
     {
-        for (int j = 1; j <= container.width; j++)
+        start_x = container.min_x;
+        start_y = container.min_y;
+        end_x = container.max_x;
+        end_y = container.max_y;
+    }
+
+    for (int i = start_y; i <= end_y; i++)
+    {
+        for (int j = start_x; j <= end_x; j++)
         {
             back_x = j - scaled_dt * vel_x[container.IDX(j, i)];
             back_y = i - scaled_dt * vel_y[container.IDX(j, i)];
@@ -142,7 +159,7 @@ void project(vector<float>& u, vector<float>& v, vector<float>& pressure, vector
     set_bnd(0, div, container);
     set_bnd(0, pressure, container);
 
-    lin_solve(0, pressure, div, 1.0f, 4.0f, container);
+    lin_solve(0, pressure, div, 1.0f, 4.0f, container, false);
 
     float scale = 0.5f / h;
     // Reset pointer to top-left
@@ -166,30 +183,34 @@ void project(vector<float>& u, vector<float>& v, vector<float>& pressure, vector
 void dens_step(int boundary_t, float diff, vector<float>& emission_arr, fluid_container& container)
 {
     add_source(container.dens, emission_arr, container);
+    container.update_bounds();
 
     swap(container.dens_prev, container.dens);
-    diffuse(boundary_t, container.dens, container.dens_prev, diff, container);
+    diffuse(boundary_t, container.dens, container.dens_prev, diff, container, true);
 
     swap(container.dens_prev, container.dens);
-    advect(boundary_t, container.dens, container.dens_prev, container.vel_x, container.vel_y, container);
+    advect(boundary_t, container.dens, container.dens_prev, container.vel_x, container.vel_y, container, true);
 
     fill(emission_arr.begin(), emission_arr.end(), 0.0f);
 }
 
-void vel_step(float viscousity, fluid_container& container)
+void vel_step(float viscosity, fluid_container& container)
 {
     add_source(container.vel_x, container.vel_x_prev, container);
     add_source(container.vel_y, container.vel_y_prev, container);
 
-    swap(container.vel_x_prev, container.vel_x); diffuse(1, container.vel_x, container.vel_x_prev, viscousity, container);
-    swap(container.vel_y_prev, container.vel_y); diffuse(2, container.vel_y, container.vel_y_prev, viscousity, container);
+    swap(container.vel_x_prev, container.vel_x); 
+    diffuse(1, container.vel_x, container.vel_x_prev, viscosity, container, false);
+
+    swap(container.vel_y_prev, container.vel_y); 
+    diffuse(2, container.vel_y, container.vel_y_prev, viscosity, container, false);
 
     project(container.vel_x, container.vel_y, container.vel_x_prev, container.vel_y_prev, container);
     swap(container.vel_x_prev, container.vel_x);
     swap(container.vel_y_prev, container.vel_y);
 
-    advect(1, container.vel_x, container.vel_x_prev, container.vel_x_prev, container.vel_y_prev, container);
-    advect(2, container.vel_y, container.vel_y_prev, container.vel_x_prev, container.vel_y_prev, container);
+    advect(1, container.vel_x, container.vel_x_prev, container.vel_x_prev, container.vel_y_prev, container, false);
+    advect(2, container.vel_y, container.vel_y_prev, container.vel_x_prev, container.vel_y_prev, container,false);
     project(container.vel_x, container.vel_y, container.vel_x_prev, container.vel_y_prev, container);
 
     fill(container.vel_x_prev.begin(), container.vel_x_prev.end(), 0.0f);
