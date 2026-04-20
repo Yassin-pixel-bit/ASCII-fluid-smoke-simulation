@@ -48,9 +48,20 @@ void init_theme(const gradient_theme& theme, int steps)
     palette.reserve(steps);
     ansi_palette.reserve(steps);
 
+    // 80% of render_str_len
+    int target_colors = (int)(steps * 0.8f);
+    
+    // Prevent division by zero
+    // a gradient needs at least 2 colors (start and end)
+    if (target_colors < 2) target_colors = 2;
+
     for (int i = 0; i < steps; i++) 
     {
-        float density = (float)i / (float)(steps - 1);
+        int bin = (i * target_colors) / steps;
+        if (bin >= target_colors) 
+            bin = target_colors - 1;
+
+        float density = (float)bin / (float)(target_colors - 1);
         RGB color = evaluate_gradient(theme, density);
 
         palette.push_back(color);
@@ -90,7 +101,7 @@ std::string get_theme_name(int idx)
     return theme_registry[idx].name;
 }
 
-const std::string& get_theme_ansi(int index)
+std::string_view get_theme_ansi(int index)
 {
     return ansi_palette[index];
 }
