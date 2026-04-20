@@ -34,9 +34,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /O2 /EHsc)
+    target_compile_options(${PROJECT_NAME} PRIVATE /O2 /EHsc /fp:fast)
 else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -O3)
+    target_compile_options(${PROJECT_NAME} PRIVATE -O3 -ffast-math)
     target_link_options(${PROJECT_NAME} PRIVATE -static)
 endif()
 
