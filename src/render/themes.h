@@ -27,6 +27,6 @@ using gradient_theme = std::vector<color_stop>;
 void init_selected_theme(int choice, int steps);
 void print_theme_menu();
 RGB get_theme_color(int index);
-const std::string& get_theme_ansi(int index);
+std::string_view get_theme_ansi(int index);
 int get_themes_max();
 std::string get_theme_name(int idx);

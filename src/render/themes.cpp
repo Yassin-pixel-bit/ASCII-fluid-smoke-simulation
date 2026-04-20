@@ -90,7 +90,7 @@ std::string get_theme_name(int idx)
     return theme_registry[idx].name;
 }
 
-const std::string& get_theme_ansi(int index)
+std::string_view get_theme_ansi(int index)
 {
     return ansi_palette[index];
 }
