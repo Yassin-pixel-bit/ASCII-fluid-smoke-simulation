@@ -67,4 +67,5 @@ const int LIN_SOL_MAX = 20;
 void dens_step(int boundary_t, float diff, std::vector<float>& emission_arr, fluid_container& container);
 void vel_step(float viscosity, fluid_container& container);
 void lin_solve_chunk(std::vector<float>& x, const std::vector<float>& x0, float a, float c, int start_x, int end_x, int start_y, int end_y, int grid_stride, int pass_color);
+void advect_chunk(int boundary_t, std::vector<float>& curr_state, const std::vector<float>& prev_state, const std::vector<float>& vel_x, const std::vector<float>& vel_y, fluid_container& container, int start_x, int end_x, int start_y, int end_y);
 void set_bnd(int b, std::vector<float>& grid, fluid_container& container);

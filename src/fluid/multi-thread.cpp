@@ -6,6 +6,12 @@
 
 using namespace std;
 
+enum class job_type
+{ 
+    LIN_SOLVE, 
+    ADVECT 
+};
+
 class SpinBarrier 
 {
     atomic<int> count;
@@ -39,6 +45,17 @@ struct lin_solve_data
     bool active_box;
 };
 
+struct advect_data
+{
+    int bnd;
+    vector<float> *curr;
+    const vector<float> *prev;
+    const vector<float> *vel_x;
+    const vector<float> *vel_y;
+    fluid_container *container;
+    bool active_box;
+};
+
 int thread_count = 1;
 static vector<jthread> workers;
 static atomic_flag initialized = ATOMIC_FLAG_INIT;
@@ -49,7 +66,9 @@ static counting_semaphore<> start_signal{0};
 static counting_semaphore<> done_signal{0};
 
 // shared data for the threads
-lin_solve_data cur_lin_solve;
+static job_type cur_job;
+static lin_solve_data cur_lin_solve;
+static advect_data cur_advect;
 
 static inline void get_bounds(fluid_container* container, bool active_box, int& start_x, int& start_y, int& end_x, int& end_y)
 {
@@ -106,6 +125,24 @@ static void do_lin_solve(int thread_idx)
     }
 }
 
+static void do_advect(int thread_idx)
+{
+    const advect_data &job = cur_advect;
+
+    int start_x, start_y, end_x, end_y;
+    get_bounds(job.container, job.active_box, start_x, start_y, end_x, end_y);
+
+    int my_start_y, my_end_y;
+    get_row_slice(thread_idx, start_y, end_y, my_start_y, my_end_y);
+
+    advect_chunk(job.bnd, *job.curr, *job.prev, *job.vel_x, *job.vel_y, *job.container, start_x, end_x, my_start_y, my_end_y);
+    sync_barrier->arrive_and_wait();
+
+    if (thread_idx == 0)
+        set_bnd(job.bnd, *job.curr, *job.container);
+    sync_barrier->arrive_and_wait();
+}
+
 void fluid_worker(stop_token stoken, int thread_idx)
 {
     while (!stoken.stop_requested())
@@ -114,7 +151,15 @@ void fluid_worker(stop_token stoken, int thread_idx)
 
         if (stoken.stop_requested()) break;
 
-        do_lin_solve(thread_idx);
+        switch (cur_job)
+        {
+            case job_type::LIN_SOLVE:
+                do_lin_solve(thread_idx);
+                break;
+            case job_type::ADVECT:
+                do_advect(thread_idx);
+                break;
+        }
 
         done_signal.release();
     }
@@ -144,10 +189,23 @@ void threaded_lin_solve(int boundary_t, std::vector<float>& x, const std::vector
 {
     init_fluid_threads();
 
+    cur_job = job_type::LIN_SOLVE;
     cur_lin_solve = { boundary_t, &x, &x0, a, c, &container, active_box };
 
     start_signal.release(thread_count);
 
+    for (int i = 0; i < thread_count; i++)
+        done_signal.acquire();
+}
+
+void threaded_advect(int boundary_t, vector<float>& curr_state, const vector<float>& prev_state, const vector<float>& vel_x, const vector<float>& vel_y, fluid_container& container, bool active_box)
+{
+    init_fluid_threads();
+
+    cur_job = job_type::ADVECT;
+    cur_advect = { boundary_t, &curr_state, &prev_state, &vel_x, &vel_y, &container, active_box };
+
+    start_signal.release(thread_count);
     for (int i = 0; i < thread_count; i++)
         done_signal.acquire();
 }
