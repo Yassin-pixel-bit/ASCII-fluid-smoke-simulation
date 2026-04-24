@@ -12,6 +12,7 @@
 #include "settings.h"
 #include "themes.h"
 #include "renderer.h"
+#include "multi-thread.h"
 
 using namespace std;
 
@@ -230,6 +231,7 @@ void setup(bool use_colors, bool needs_flush)
 
 void shutdown(int signum = 0)
 {
+    shutdown_fluid_threads();
     shutdown_engine_timing();
     restoreTerminal();
 
