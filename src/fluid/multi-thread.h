@@ -3,6 +3,8 @@
 #include "fluid_math.h"
 #include <vector>
 
+extern int thread_count;
+
 // Initializes the persistent jthreads
 void init_fluid_threads();
 

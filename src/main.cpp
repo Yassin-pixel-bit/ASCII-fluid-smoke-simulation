@@ -33,6 +33,8 @@ int main()
     vector<string> warnings;
     get_user_settings(config, warnings);
 
+    thread_count = config.physics_threads;
+
     if (!warnings.empty())
     {
         for (const string& w : warnings)

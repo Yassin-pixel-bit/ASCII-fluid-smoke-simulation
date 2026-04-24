@@ -121,6 +121,26 @@ void load_bool(mINI::INIStructure& ini, const string& section, const string& key
     }
 }
 
+void load_int(mINI::INIStructure& ini, const string& section, const string& key, int& out_val, vector<std::string>& warnings)
+{
+    if (ini[section].has(key))
+    {
+        string raw_string = ini[section][key];
+        try 
+        {
+            out_val = stoi(raw_string);
+        } 
+        catch (...) 
+        {
+            warnings.push_back("WARNING: '" + raw_string + "' is not a valid integer for [" + section + "][" + key + "]. Using default.");
+        }
+    }
+    else
+    {
+        warnings.push_back("WARNING: Missing key '" + key + "' in [" + section + "]. Using default.");
+    }
+}
+
 void read_ini(sim_config& config, vector<string>& warnings)
 {
     mINI::INIFile file("settings.ini");
@@ -134,6 +154,8 @@ void read_ini(sim_config& config, vector<string>& warnings)
     {
         load_float(ini, ENGINE_HEADER, "fps", config.target_fps, warnings);
         load_bool(ini, ENGINE_HEADER, "use_colors", config.use_colors, warnings);
+        load_int(ini, ENGINE_HEADER, "physics_threads", config.physics_threads, warnings);
+        config.physics_threads = min(config.physics_threads, 1);
     }
 
     // fluid simulation section

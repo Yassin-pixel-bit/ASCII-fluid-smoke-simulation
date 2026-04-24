@@ -33,7 +33,7 @@ public:
 
 };
 
-static int thread_count = std::max(1u, std::thread::hardware_concurrency() / 2);
+int thread_count = 1;
 static vector<jthread> workers;
 // using a unique_ptr to bypass the need for initializing a thread number to std::barrier
 // TODO: remove unique_ptr<>
