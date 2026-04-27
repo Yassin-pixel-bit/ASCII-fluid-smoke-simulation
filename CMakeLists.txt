@@ -4,6 +4,7 @@ project(ASCII_fluid)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Requires C++20 or higher. Built and tested with C++23.
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -60,18 +61,18 @@ if(NOT PYINSTALLER_STATUS EQUAL 0)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         message(FATAL_ERROR 
             " PYINSTALLER NOT FOUND!\n"
-            " The Python UI Packager requires PyInstaller to build the executable.\n"
-            " Please install 'pip' and then install PyInstaller:\n"
+            " The Python UI Packager requires PyInstaller and other dependencies.\n"
+            " Please install 'pip' and then install the required packages:\n"
             "    1. sudo apt install python3-pip\n"
-            "    2. pip3 install pyinstaller\n"
+            "    2. pip3 install -r requirements.txt\n"
             "       (Add --break-system-packages if Ubuntu blocks it)\n"
         )
     else()
         message(FATAL_ERROR 
             " PYINSTALLER NOT FOUND!\n"
-            " The Python UI Packager requires PyInstaller to build the executable.\n"
-            " Please install it by running the following command in your terminal:\n"
-            "    ${Python3_EXECUTABLE} -m pip install pyinstaller\n\n"
+            " The Python UI Packager requires PyInstaller and other dependencies.\n"
+            " Please install them by running the following command in your terminal:\n"
+            "    ${Python3_EXECUTABLE} -m pip install -r requirements.txt\n\n"
         )
     endif()
 endif()

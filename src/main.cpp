@@ -12,6 +12,7 @@
 #include "settings.h"
 #include "themes.h"
 #include "renderer.h"
+#include "multi-thread.h"
 
 using namespace std;
 
@@ -31,6 +32,8 @@ int main()
     sim_config config;
     vector<string> warnings;
     get_user_settings(config, warnings);
+
+    thread_count = config.physics_threads;
 
     if (!warnings.empty())
     {
@@ -230,6 +233,7 @@ void setup(bool use_colors, bool needs_flush)
 
 void shutdown(int signum = 0)
 {
+    shutdown_fluid_threads();
     shutdown_engine_timing();
     restoreTerminal();
 

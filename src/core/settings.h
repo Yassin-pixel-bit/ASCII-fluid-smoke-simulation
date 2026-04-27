@@ -23,6 +23,7 @@ struct sim_config {
     float fluid_emitter_r = 10.0f;
     bool dist_fluid = true;
     bool use_colors = false;
+    int physics_threads = 1;
 };
 
 void get_user_settings(sim_config& config, std::vector<std::string>& warnings);

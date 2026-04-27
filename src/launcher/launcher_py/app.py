@@ -1,10 +1,22 @@
 import sys
+import os
 import customtkinter as ctk
 
 from constants import DEFAULTS, UI_SCHEMA, SETTINGS_PATH, ENGINE_EXE_PATH, BASE_DIR
 from logic import load_config, safe_read_val, spawn_terminal
 from widgets import link_slider_and_entry, slider_decimals
 
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
+def get_physical_cores():
+    if psutil:
+        cores = psutil.cpu_count(logical=False)
+        if cores is not None:
+            return cores
+    return max(1, os.cpu_count() // 2)
 
 class AppLauncher:
     def __init__(self):
@@ -52,6 +64,12 @@ class AppLauncher:
                     self.config.set(section, key, f"{val:.5f}".rstrip("0").rstrip("."))
                 else:
                     self.config.set(section, key, str(val))
+
+        if not self.config.has_section("Engine"):
+            self.config.add_section("Engine")
+            
+        physics_threads = get_physical_cores()
+        self.config.set("Engine", "physics_threads", str(physics_threads))
 
         with open(SETTINGS_PATH, "w") as configfile:
             self.config.write(configfile)

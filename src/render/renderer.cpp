@@ -2,104 +2,110 @@
 
 using namespace std;
 
-struct run_flusher {
-    string& print_string;
+struct frame_emitter
+{
+    std::string& out;
     bool use_colors;
-    
-    RGB current_terminal_color = {0, 0, 0}; 
+
+    // cursor tracking
+    int expected_x = -1;
+    int expected_y = -1;
+
+    // color tracking
+    RGB current_color = {0, 0, 0};
     bool is_colored = false;
 
-    inline void flush(int run_index, int run_length) {
-        if (run_length == 0) return;
-
-        char run_char = render_str[run_index];
-
-        if (use_colors)
+    void emit_color(int char_index, char cell_char)
+    {
+        if (cell_char != render_str[0])
         {
-            RGB run_color = get_theme_color(run_index);
-
-            if (run_char != render_str[0]) 
+            RGB color = get_theme_color(char_index);
+            if (!is_colored || color != current_color)
             {
-                if (!is_colored || run_color != current_terminal_color) 
-                {
-                    print_string.append(get_theme_ansi(run_index));
-                    current_terminal_color = run_color;
-                    is_colored = true;
-                }
-            } 
-            else if (is_colored) 
-            {
-                print_string.append("\033[0m");
-                is_colored = false;
+                out.append(get_theme_ansi(char_index));
+                current_color = color;
+                is_colored    = true;
             }
         }
-
-        int total_chars = run_length * 2;
-        if (total_chars <= 4) 
+        else if (is_colored)
         {
-            print_string.append(total_chars, run_char);
-        }
-        else 
-        {
-            print_string.push_back(run_char);
-            fmt::format_to(back_inserter(print_string), "\033[{}b", total_chars - 1);
+            out.append("\033[0m");
+            is_colored = false;
         }
     }
 
-    inline void close() {
-        if (is_colored) print_string.append("\033[0m");
+    void emit_cell(int char_index, int target_x, int target_y)
+    {
+        if (expected_y != target_y || expected_x != target_x)
+            fmt::format_to(back_inserter(out), "\033[{};{}H", target_y, target_x);
+
+        char cell_char = render_str[char_index];
+
+        if (use_colors)
+            emit_color(char_index, cell_char);
+
+        // Each cell is two characters wide
+        out.push_back(cell_char);
+        out.push_back(cell_char);
+
+        expected_x = target_x + 2;
+        expected_y = target_y;
+    }
+
+    void close()
+    {
+        if (is_colored) out.append("\033[0m");
     }
 };
 
+static void check_frame_reset(vector<int>& prev_frame, string& print_string, int frame_size, bool use_colors, bool& last_color_state)
+{
+    if (prev_frame.size() != (size_t)frame_size || last_color_state != use_colors)
+    {
+        prev_frame.assign(frame_size, -1);
+        print_string.append("\033[2J");
+        last_color_state = use_colors;
+    }
+}
+
 void set_print_string(string &print_string, const vector<float>& grid ,const int TERMINAL_LEN, const int TERMINAL_WIDTH, bool use_colors)
 {
-    int grid_stride = TERMINAL_WIDTH + 2;
-    // Skip the top boundary wall, and the first left boundary wall
-    int fluid_index = grid_stride + 1;
+    static vector<int> prev_frame;
+    static bool last_color_state = use_colors;
+
+    check_frame_reset(prev_frame, print_string, TERMINAL_LEN * TERMINAL_WIDTH, use_colors, last_color_state);
 
     print_string.clear();
 
-    run_flusher  flusher{print_string, use_colors};
+    frame_emitter emitter{print_string, use_colors};
 
-    RGB current_terminal_color = {0, 0, 0}; 
-    bool is_colored = false;
+    int grid_stride = TERMINAL_WIDTH + 2;
+    int fluid_index = grid_stride + 1; // skip top wall and first left wall
+    int frame_idx   = 0;
 
-    for (int i = 0; i < TERMINAL_LEN; i++)
+    for (int y = 0; y < TERMINAL_LEN; y++)
     {
-        int current_run_index = -1; 
-        int cell_run_length = 0;
-
-        for (int j = 0; j < TERMINAL_WIDTH; j++)
+        for (int x = 0; x < TERMINAL_WIDTH; x++)
         {
-            float density = grid[fluid_index];
-            fluid_index++;
+            float density   = grid[fluid_index++];
+            int   char_index = clamp((int)(density * (render_str_len - 1)), 0, render_str_len - 1);
 
-            int max_index = render_str_len - 1;
-            int char_index = clamp((int)(density * max_index), 0, max_index);
+            if (prev_frame[frame_idx] != char_index)
+            {
+                prev_frame[frame_idx] = char_index;
 
-            if (char_index == current_run_index)
-            {
-                cell_run_length++;
+                // ANSI rows/cols are 1-based; row 1 is the HUD so content starts at row 2.
+                // Each cell is 2 terminal columns wide, so multiply x by 2.
+                emitter.emit_cell(char_index,
+                          (x * 2) + 1, y + 2);
             }
-            else
-            {
-                flusher.flush(current_run_index, cell_run_length);
-                current_run_index = char_index;
-                cell_run_length = 1;
-            }
+
+            frame_idx++;
         }
-
-        flusher.flush(current_run_index, cell_run_length);
-
-        // Jump over the right wall (+1) and the next row's left wall (+1)
-        fluid_index += 2;
-
-        // as long as we are not at the last row add a newline char
-        if ((i + 1) != TERMINAL_LEN)
-            print_string.push_back('\n');
+        fluid_index += 2; // jump over right wall and next row's left wall
     }
 
-    flusher.close();
+    emitter.close();
 }
 
 bool update_hud(float dt, const string_view theme_name, int term_width, string& out_hud)
